@@ -2,20 +2,40 @@ import pandas as pd
 
 
 class Data:
-    def __init__(self, data_frame = None, num_partition = 1, balanced_instance = False):
-        self.__normal_header, self.__opposite_header = pd.array([])
-        self.__normal_data, self.__opposite_data = pd.Series([])
+    def __init__(self, data_frame = None, categorical_columns = None, 
+                 number_partitions = 1, number_quantiles_ordinal_columns = 1,
+                 has_balanced_instances = False):
 
-        self.__binarized_normal_data, self.__binarized_opposite_data = pd.Series([])
+        self.__normal_header = pd.array([])
+        self.__opposite_header = pd.array([])
 
-        self.__load_header_and_data(data_frame)
+        self.__binarized_normal_data = pd.Series([])
+        self.__binarized_opposite_data = pd.Series([])
 
-        self.__binarize_data()
+        self.__number_partitions = number_partitions
 
-    
-    def __load_header_and_data(self, data_frame):
+        self.__binarize(data_frame, categorical_columns,
+                        number_quantiles_ordinal_columns)
+
+        if has_balanced_instances:
+            self.__balance_instance()
+
+
+    def __binarize(self, data_frame, categorical_columns, 
+                   number_quantiles_ordinal_columns):
         pass
 
+    def __balance_instance(self):
+        pass
 
-    def __binarize_data(self):
+    def get_normal_header(self):
+        return self.__normal_header
+
+    def get_opposite_header(self):
+        return self.__opposite_header
+
+    def get_normal_data(self, partition = 1):
+        pass
+
+    def get_opposite_data(self, partition = 1):
         pass
