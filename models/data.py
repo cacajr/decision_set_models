@@ -9,8 +9,8 @@ class Data:
         self.__normal_header = pd.array([])
         self.__opposite_header = pd.array([])
 
-        self.__binarized_normal_data = pd.Series([])
-        self.__binarized_opposite_data = pd.Series([])
+        self.__binarized_normal_values = pd.Series([])
+        self.__binarized_opposite_values = pd.Series([])
 
         self.__number_partitions = number_partitions
 
@@ -34,8 +34,8 @@ class Data:
     def get_opposite_header(self):
         return self.__opposite_header
 
-    def get_normal_data(self, partition = 1):
+    def get_normal_values(self, partition = 1):
         pass
 
-    def get_opposite_data(self, partition = 1):
+    def get_opposite_values(self, partition = 1):
         pass
