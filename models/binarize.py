@@ -27,9 +27,9 @@ class Binarize:
             number_partitions = 1
         ):
 
-        self.__normal_header_labels = pd.array([])
-        self.__opposite_header_labels = pd.array([])
-        self.__qtts_columns_per_header_label = pd.array([])
+        self.__normal_features_labels = pd.array([])
+        self.__opposite_features_labels = pd.array([])
+        self.__qtts_columns_per_feature_label = pd.array([])
 
         self.__binarized_normal_values = pd.Series([])
         self.__binarized_opposite_values = pd.Series([])
@@ -45,19 +45,22 @@ class Binarize:
 
     def __binarize(self, data_frame, categorical_columns_index, 
                    number_quantiles_ordinal_columns):
+        # https://youtu.be/VxHFJd83S5Q?t=1660
+        # https://phylos.net/2021-08-20/dataframes-preparacao-de-dados
+        # TODO
         pass
 
     def __balance_instance(self):
         pass
 
-    def get_normal_header_label(self):
-        return self.__normal_header_labels
+    def get_normal_features_label(self):
+        return self.__normal_features_labels
 
-    def get_opposite_header_label(self):
-        return self.__opposite_header_labels
+    def get_opposite_features_label(self):
+        return self.__opposite_features_labels
     
-    def get_quantities_columns_per_header_label(self):
-        return self.__qtts_columns_per_header_label
+    def get_quantities_columns_per_feature_label(self):
+        return self.__qtts_columns_per_feature_label
 
     def get_normal_values(self, partition = 1):
         pass
