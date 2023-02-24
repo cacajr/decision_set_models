@@ -5,7 +5,8 @@ import numpy as np
 class Binarize:
     ''' Description of Params
 
-        data_frame: must be a dataframe that save the dataset.
+        data_frame: must be a dataframe that save the dataset without class/target/y
+        column.
 
         categorical_columns_index: must be a array with columns index that have 
         categorical data.
