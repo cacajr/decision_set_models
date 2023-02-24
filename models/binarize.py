@@ -32,8 +32,10 @@ class Binarize:
         self.__opposite_features_labels = pd.array([])
         self.__qtts_columns_per_feature_label = pd.array([])
 
+        # it will be (list) at the end of __init__ and will save each partition
         self.__binarized_normal_instances = pd.DataFrame([])
         self.__binarized_opposite_instances = pd.DataFrame([])
+        # ---------------------------------------------------------------------
 
         self.__number_partitions = number_partitions
 
@@ -94,6 +96,16 @@ class Binarize:
 
         self.__opposite_features_labels = pd.array(
             self.__binarized_opposite_instances.columns
+        )
+
+        self.__binarized_normal_instances = np.array_split(
+            self.__binarized_normal_instances.values, 
+            self.__number_partitions
+        )
+
+        self.__binarized_opposite_instances = np.array_split(
+            self.__binarized_opposite_instances.values, 
+            self.__number_partitions
         )
 
         self.__qtts_columns_per_feature_label = pd.array(
@@ -216,10 +228,23 @@ class Binarize:
         return self.__qtts_columns_per_feature_label
 
     def get_normal_instances(self, partition = 1):
-        return self.__binarized_normal_instances.values
+        self.__partition_validate(partition)
+        
+        return self.__binarized_normal_instances[partition - 1]
 
     def get_opposite_instances(self, partition = 1):
-        return self.__binarized_opposite_instances.values
+        self.__partition_validate(partition)
+
+        return self.__binarized_opposite_instances[partition - 1]
+
+    def __partition_validate(self, partition):
+        if partition < 1 or partition > self.__number_partitions: 
+            raise Exception(f'Partition {partition} is out of range')
+        
+        if type(partition) not in [int, float]: 
+            raise Exception(f'Partition {partition} is invalid')
+        
+        pass
 
     def get_number_partitions(self):
         return self.__number_partitions
