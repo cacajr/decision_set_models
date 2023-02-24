@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 
 class Binarize:
@@ -97,7 +98,7 @@ class Binarize:
                     [
                         self.__binarized_opposite_instances, 
                         binarized_columns.replace({0: 1, 1: 0}).set_axis(
-                            ['¬' + label for label in unique_values], 
+                            ['¬ ' + label for label in unique_values], 
                             axis='columns'
                         )
                     ], 
@@ -107,16 +108,65 @@ class Binarize:
                 qtts_columns_per_feature_label.append(len(unique_values))
 
             elif 'float' in unique_values_dtype or 'int' in unique_values_dtype:
-                categories = pd.qcut(
-                    pd.Series(data_frame[feat]), 
-                    number_quantiles_ordinal_columns
+                new_feats = data_frame[feat].quantile(
+                    [
+                        n/number_quantiles_ordinal_columns 
+                        for n in range(1, number_quantiles_ordinal_columns)
+                    ]
+                )
+
+                binarized_columns = pd.DataFrame(
+                    [
+                        [0 for _ in range(len(new_feats))] 
+                        for _ in range(len(data_frame[feat]))
+                    ], 
+                    columns=new_feats
+                )
+                for column in binarized_columns:
+                    indexs_one = data_frame[feat].index[np.where(data_frame[feat] <= column)]
+                    indexs_zero = data_frame[feat].index[np.where(data_frame[feat] > column)]
+                    binarized_columns.loc[indexs_one, column] = 1
+                    binarized_columns.loc[indexs_zero, column] = 0
+
+                self.__binarized_normal_instances = pd.concat(
+                    [
+                        self.__binarized_normal_instances, 
+                        binarized_columns.set_axis(
+                            [str(feat) + ' <= ' + str(label) for label in new_feats], 
+                            axis='columns'
+                        )
+                    ], 
+                    axis=1
+                )
+
+                self.__binarized_opposite_instances = pd.concat(
+                    [
+                        self.__binarized_opposite_instances, 
+                        binarized_columns.replace({0: 1, 1: 0}).set_axis(
+                            [str(feat) + ' > ' + str(label) for label in new_feats], 
+                            axis='columns'
+                        )
+                    ], 
+                    axis=1
+                )
+
+                qtts_columns_per_feature_label.append(len(new_feats))
+
+            else:
+                raise Exception(
+                    f'Dataset with column {feat} invalid. ' +
+                    "Make sure this column really isn't a categorical column"
                 )
 
 
+        self.__normal_features_labels = pd.array(
+            self.__binarized_normal_instances.columns
+        )
 
-            else:
-                raise Exception('Dataset with some invalid column')
-                
+        self.__opposite_features_labels = pd.array(
+            self.__binarized_opposite_instances.columns
+        )
+
         self.__qtts_columns_per_feature_label = pd.array(
             qtts_columns_per_feature_label
         )
@@ -133,11 +183,11 @@ class Binarize:
     def get_quantities_columns_per_feature_label(self):
         return self.__qtts_columns_per_feature_label
 
-    def get_normal_values(self, partition = 1):
-        pass
+    def get_normal_instances(self, partition = 1):
+        return self.__binarized_normal_instances.values
 
-    def get_opposite_values(self, partition = 1):
-        pass
+    def get_opposite_instances(self, partition = 1):
+        return self.__binarized_opposite_instances.values
 
     def get_number_partitions(self):
         return self.__number_partitions
