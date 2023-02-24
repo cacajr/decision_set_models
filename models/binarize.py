@@ -22,7 +22,7 @@ class Binarize:
     def __init__(self, 
             data_frame = pd.DataFrame([]), 
             categorical_columns_index = pd.array([]), 
-            number_quantiles_ordinal_columns = 1, 
+            number_quantiles_ordinal_columns = 5, 
             balance_instances = True,
             number_partitions = 1
         ):
@@ -31,26 +31,97 @@ class Binarize:
         self.__opposite_features_labels = pd.array([])
         self.__qtts_columns_per_feature_label = pd.array([])
 
-        self.__binarized_normal_values = pd.Series([])
-        self.__binarized_opposite_values = pd.Series([])
+        self.__binarized_normal_instances = pd.DataFrame([])
+        self.__binarized_opposite_instances = pd.DataFrame([])
 
         self.__number_partitions = number_partitions
 
-        self.__binarize(data_frame, categorical_columns_index,
-                        number_quantiles_ordinal_columns)
+        self.__binarize(
+            data_frame, 
+            categorical_columns_index,
+            number_quantiles_ordinal_columns
+        )
 
         if balance_instances:
-            self.__balance_instance()
+            self.__balance_instances()
 
 
-    def __binarize(self, data_frame, categorical_columns_index, 
-                   number_quantiles_ordinal_columns):
-        # https://youtu.be/VxHFJd83S5Q?t=1660
-        # https://phylos.net/2021-08-20/dataframes-preparacao-de-dados
-        # TODO
-        pass
+    def __binarize(self, 
+            data_frame, 
+            categorical_columns_index, 
+            number_quantiles_ordinal_columns
+        ):
 
-    def __balance_instance(self):
+        qtts_columns_per_feature_label = []
+
+        for index_feat, feat in enumerate(data_frame):
+            unique_values = data_frame[feat].unique()
+            unique_values_dtype = str(unique_values.dtype)
+
+            if unique_values.size == 1:
+                continue
+
+            elif unique_values.size == 2:
+                binarized_column = pd.get_dummies(data_frame[feat])
+
+                self.__binarized_normal_instances = pd.concat(
+                    [
+                        self.__binarized_normal_instances, 
+                        binarized_column[unique_values[0]]
+                    ], 
+                    axis=1
+                )
+
+                self.__binarized_opposite_instances = pd.concat(
+                    [
+                        self.__binarized_opposite_instances, 
+                        binarized_column[unique_values[1]]
+                    ], 
+                    axis=1
+                )
+
+                qtts_columns_per_feature_label.append(1)
+
+            elif index_feat in categorical_columns_index:
+                binarized_columns = pd.get_dummies(data_frame[feat])
+
+                self.__binarized_normal_instances = pd.concat(
+                    [
+                        self.__binarized_normal_instances, 
+                        binarized_columns
+                    ], 
+                    axis=1
+                )
+
+                self.__binarized_opposite_instances = pd.concat(
+                    [
+                        self.__binarized_opposite_instances, 
+                        binarized_columns.replace({0: 1, 1: 0}).set_axis(
+                            ['¬' + label for label in unique_values], 
+                            axis='columns'
+                        )
+                    ], 
+                    axis=1
+                )
+
+                qtts_columns_per_feature_label.append(len(unique_values))
+
+            elif 'float' in unique_values_dtype or 'int' in unique_values_dtype:
+                categories = pd.qcut(
+                    pd.Series(data_frame[feat]), 
+                    number_quantiles_ordinal_columns
+                )
+
+
+
+            else:
+                raise Exception('Dataset with some invalid column')
+                
+        self.__qtts_columns_per_feature_label = pd.array(
+            qtts_columns_per_feature_label
+        )
+
+    def __balance_instances(self):
         pass
 
     def get_normal_features_label(self):
