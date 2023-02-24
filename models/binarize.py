@@ -63,14 +63,14 @@ class Binarize:
                 continue
 
             elif unique_values.size == 2:
-                self.__make_binary_columns(data_frame[feat], unique_values)
+                self.__make_binary_columns(data_frame[feat])
 
                 qtts_columns_per_feature_label.append(1)
 
             elif index_feat in categorical_columns_index:
-                self.__make_categorical_columns(data_frame[feat], unique_values)
+                new_feats = self.__make_categorical_columns(data_frame[feat])
 
-                qtts_columns_per_feature_label.append(len(unique_values))
+                qtts_columns_per_feature_label.append(len(new_feats))
 
             elif 'float' in unique_values_dtype or 'int' in unique_values_dtype:
                 new_feats = self.__make_ordinal_columns(
@@ -100,13 +100,14 @@ class Binarize:
             qtts_columns_per_feature_label
         )
 
-    def __make_binary_columns(self, column, unique_values):
+    def __make_binary_columns(self, column):
         binarized_column = pd.get_dummies(column)
+        new_feats = binarized_column.columns
 
         self.__binarized_normal_instances = pd.concat(
             [
                 self.__binarized_normal_instances, 
-                binarized_column[unique_values[0]]
+                binarized_column[new_feats[0]]
             ], 
             axis=1
         )
@@ -114,13 +115,16 @@ class Binarize:
         self.__binarized_opposite_instances = pd.concat(
             [
                 self.__binarized_opposite_instances, 
-                binarized_column[unique_values[1]]
+                binarized_column[new_feats[1]]
             ], 
             axis=1
         )
 
-    def __make_categorical_columns(self, column, unique_values):
+        return new_feats
+
+    def __make_categorical_columns(self, column):
         binarized_columns = pd.get_dummies(column)
+        new_feats = binarized_columns.columns
 
         self.__binarized_normal_instances = pd.concat(
             [
@@ -134,12 +138,14 @@ class Binarize:
             [
                 self.__binarized_opposite_instances, 
                 binarized_columns.replace({0: 1, 1: 0}).set_axis(
-                    ['¬ ' + label for label in unique_values], 
+                    ['Not ' + str(label) for label in new_feats], 
                     axis='columns'
                 )
             ], 
             axis=1
         )
+
+        return new_feats
 
     def __make_ordinal_columns(self, feature, column, number_quantiles_ordinal_columns):
         new_feats = column.quantile(
