@@ -63,12 +63,12 @@ class Binarize:
                 continue
 
             elif unique_values.size == 2:
-                self.__make_binary_columns(data_frame[feat])
+                self.__make_binary_columns(feat, data_frame[feat])
 
                 qtts_columns_per_feature_label.append(1)
 
             elif index_feat in categorical_columns_index:
-                new_feats = self.__make_categorical_columns(data_frame[feat])
+                new_feats = self.__make_categorical_columns(feat, data_frame[feat])
 
                 qtts_columns_per_feature_label.append(len(new_feats))
 
@@ -100,14 +100,18 @@ class Binarize:
             qtts_columns_per_feature_label
         )
 
-    def __make_binary_columns(self, column):
-        binarized_column = pd.get_dummies(column)
-        new_feats = binarized_column.columns
+    def __make_binary_columns(self, feature, column):
+        binarized_columns = pd.get_dummies(column)
+        new_feats = binarized_columns.columns
+        binarized_columns = binarized_columns.set_axis(
+            [f'{feature} {label}' for label in new_feats],
+            axis='columns'
+        )
 
         self.__binarized_normal_instances = pd.concat(
             [
                 self.__binarized_normal_instances, 
-                binarized_column[new_feats[0]]
+                binarized_columns.iloc[:, 0]
             ], 
             axis=1
         )
@@ -115,21 +119,24 @@ class Binarize:
         self.__binarized_opposite_instances = pd.concat(
             [
                 self.__binarized_opposite_instances, 
-                binarized_column[new_feats[1]]
+                binarized_columns.iloc[:, 1]
             ], 
             axis=1
         )
 
         return new_feats
 
-    def __make_categorical_columns(self, column):
+    def __make_categorical_columns(self, feature, column):
         binarized_columns = pd.get_dummies(column)
         new_feats = binarized_columns.columns
 
         self.__binarized_normal_instances = pd.concat(
             [
                 self.__binarized_normal_instances, 
-                binarized_columns
+                binarized_columns.set_axis(
+                    [f'{feature} {label}' for label in new_feats], 
+                    axis='columns'
+                )
             ], 
             axis=1
         )
@@ -138,7 +145,7 @@ class Binarize:
             [
                 self.__binarized_opposite_instances, 
                 binarized_columns.replace({0: 1, 1: 0}).set_axis(
-                    ['Not ' + str(label) for label in new_feats], 
+                    [f'Not {feature} {label}' for label in new_feats], 
                     axis='columns'
                 )
             ], 
@@ -176,7 +183,7 @@ class Binarize:
             [
                 self.__binarized_normal_instances, 
                 binarized_columns.set_axis(
-                    [str(feature) + ' <= ' + str(label) for label in new_feats], 
+                    [f'{feature} <= {label}' for label in new_feats], 
                     axis='columns'
                 )
             ], 
@@ -187,7 +194,7 @@ class Binarize:
             [
                 self.__binarized_opposite_instances, 
                 binarized_columns.replace({0: 1, 1: 0}).set_axis(
-                    [str(feature) + ' > ' + str(label) for label in new_feats], 
+                    [f'{feature} > {label}' for label in new_feats], 
                     axis='columns'
                 )
             ], 
