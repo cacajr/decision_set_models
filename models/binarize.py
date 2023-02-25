@@ -285,7 +285,7 @@ class Binarize:
     def get_opposite_features_label(self):
         return self.__opposite_features_labels
     
-    def get_quantities_columns_per_feature_label(self):
+    def get_qtt_binarized_feat_per_original_feat(self):
         return self.__qtts_columns_per_feature_label
 
     def get_normal_instances(self, partition = 1):
