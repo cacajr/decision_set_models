@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 
 class Binarize:
@@ -52,10 +53,7 @@ class Binarize:
             number_quantiles_ordinal_columns
         )
 
-        self.__separate_partitions()
-
-        if balance_instances:
-            self.__balance_instances()
+        self.__separate_partitions(balance_instances)
 
 
     def __binarize(self, 
@@ -72,6 +70,8 @@ class Binarize:
             unique_values_dtype = str(unique_values.dtype)
 
             if unique_values.size == 1:
+                qtts_columns_per_feature_label.append(0)
+
                 continue
 
             elif unique_values.size == 2:
@@ -225,7 +225,16 @@ class Binarize:
 
         return new_feats
 
-    def __separate_partitions(self):
+    def __separate_partitions(self, balance_instances):
+        # if the number of partitions is greater than the number of instances, empty
+        # partitions will be created. TODO: validation to compare if number of partitions
+        # is greater than number of instances
+        if self.__number_partitions < 1 or type(self.__number_partitions) is not int:
+            raise Exception('Number of partitions is invalid')
+
+        data_frame_binarized = self.__binarized_normal_instances
+        series_binarized = self.__binarized_classes
+
         self.__binarized_normal_instances = np.array_split(
             self.__binarized_normal_instances.values, 
             self.__number_partitions
@@ -241,8 +250,34 @@ class Binarize:
             self.__number_partitions
         )
 
-    def __balance_instances(self):
-        pass
+        if balance_instances:
+            self.__balance_instances(data_frame_binarized, series_binarized)
+
+    def __balance_instances(self, data_frame_binarized, series_binarized):
+        normal_instances_balanced = []
+        classes_balanced = []
+
+        partitions = self.__binarized_normal_instances
+        if self.__number_partitions > 1:
+            partitions = self.__binarized_normal_instances[:-1]
+
+        X_aux, y_aux = data_frame_binarized.values, series_binarized.values
+        for partition in partitions:
+            X1, X2, y1, y2 = train_test_split(X_aux, y_aux, train_size=len(partition))
+            normal_instances_balanced.append(X1)
+            classes_balanced.append(y1)
+            X_aux, y_aux = X2, y2
+        normal_instances_balanced.append(X_aux)
+        classes_balanced.append(y_aux)
+
+        opposite_instances_balanced = [
+            np.select([instance == 0, instance == 1], [1, 0], instance)
+            for instance in normal_instances_balanced
+        ]
+
+        self.__binarized_normal_instances = normal_instances_balanced
+        self.__binarized_opposite_instances = opposite_instances_balanced
+        self.__binarized_classes = classes_balanced
 
     def get_normal_features_label(self):
         return self.__normal_features_labels
