@@ -8,6 +8,9 @@ class Binarize:
         data_frame: must be a dataframe that save the dataset without class/target/y
         column.
 
+        series: must be a binary series (yes/no, 0/1, mas/fem, etc) that save the 
+        class/target/y of the dataset
+
         categorical_columns_index: must be a array with columns index that have 
         categorical data.
 
@@ -22,9 +25,10 @@ class Binarize:
 
     '''
     def __init__(self, 
-            data_frame = pd.DataFrame([]), 
-            categorical_columns_index = pd.array([]), 
-            number_quantiles_ordinal_columns = 5, 
+            data_frame = pd.DataFrame([]),
+            series = pd.Series([], dtype='object'),
+            categorical_columns_index = pd.array([]),
+            number_quantiles_ordinal_columns = 5,
             balance_instances = True,
             number_partitions = 1
         ):
@@ -33,25 +37,30 @@ class Binarize:
         self.__opposite_features_labels = pd.array([])
         self.__qtts_columns_per_feature_label = pd.array([])
 
-        # it will be (list) at the end of __init__ and will save each partition
+        # this variables will be a list with arrays that will save each partition
         self.__binarized_normal_instances = pd.DataFrame([])
         self.__binarized_opposite_instances = pd.DataFrame([])
-        # ---------------------------------------------------------------------
+        self.__binarized_classes = pd.Series([], dtype='object')
+        # -----------------------------------------------------------------------
 
         self.__number_partitions = number_partitions
 
         self.__binarize(
-            data_frame, 
+            data_frame,
+            series,
             categorical_columns_index,
             number_quantiles_ordinal_columns
         )
+
+        self.__separate_partitions()
 
         if balance_instances:
             self.__balance_instances()
 
 
     def __binarize(self, 
-            data_frame, 
+            data_frame,
+            series, 
             categorical_columns_index, 
             number_quantiles_ordinal_columns
         ):
@@ -90,7 +99,6 @@ class Binarize:
                     "Make sure this column really isn't a categorical column"
                 )
 
-
         self.__normal_features_labels = pd.array(
             self.__binarized_normal_instances.columns
         )
@@ -99,18 +107,19 @@ class Binarize:
             self.__binarized_opposite_instances.columns
         )
 
-        self.__binarized_normal_instances = np.array_split(
-            self.__binarized_normal_instances.values, 
-            self.__number_partitions
-        )
-
-        self.__binarized_opposite_instances = np.array_split(
-            self.__binarized_opposite_instances.values, 
-            self.__number_partitions
-        )
-
         self.__qtts_columns_per_feature_label = pd.array(
             qtts_columns_per_feature_label
+        )
+
+        unique_values = np.sort(series.unique())
+        if unique_values.size != 2:
+            raise Exception('The param series (column class/target/y) must be binary')
+
+        self.__binarized_classes = series.replace(
+            {
+                unique_values[0]: 0, 
+                unique_values[1]: 1
+            }
         )
 
     def __make_binary_columns(self, feature, column):
@@ -216,6 +225,22 @@ class Binarize:
 
         return new_feats
 
+    def __separate_partitions(self):
+        self.__binarized_normal_instances = np.array_split(
+            self.__binarized_normal_instances.values, 
+            self.__number_partitions
+        )
+
+        self.__binarized_opposite_instances = np.array_split(
+            self.__binarized_opposite_instances.values, 
+            self.__number_partitions
+        )
+
+        self.__binarized_classes = np.array_split(
+            self.__binarized_classes.values, 
+            self.__number_partitions
+        )
+
     def __balance_instances(self):
         pass
 
@@ -232,6 +257,11 @@ class Binarize:
         self.__partition_validate(partition)
         
         return self.__binarized_normal_instances[partition - 1]
+
+    def get_classes(self, partition = 1):
+        self.__partition_validate(partition)
+        
+        return self.__binarized_classes[partition - 1]
 
     def get_opposite_instances(self, partition = 1):
         self.__partition_validate(partition)
