@@ -257,18 +257,22 @@ class Binarize:
         normal_instances_balanced = []
         classes_balanced = []
 
-        partitions = self.__binarized_normal_instances
-        if self.__number_partitions > 1:
-            partitions = self.__binarized_normal_instances[:-1]
-
         X_aux, y_aux = data_frame_binarized.values, series_binarized.values
-        for partition in partitions:
-            X1, X2, y1, y2 = train_test_split(X_aux, y_aux, train_size=len(partition))
-            normal_instances_balanced.append(X1)
-            classes_balanced.append(y1)
-            X_aux, y_aux = X2, y2
-        normal_instances_balanced.append(X_aux)
-        classes_balanced.append(y_aux)
+        
+        if self.__number_partitions == 1:
+            X1, X2, y1, y2 = train_test_split(X_aux, y_aux, train_size=0.5)
+            normal_instances_balanced.append(np.concatenate((X1, X2)))
+            classes_balanced.append(np.concatenate((y1, y2)))
+        else:
+            for partition in self.__binarized_normal_instances[:-1]:
+                X1, X2, y1, y2 = train_test_split(
+                    X_aux, y_aux, train_size=len(partition)
+                )
+                normal_instances_balanced.append(X1)
+                classes_balanced.append(y1)
+                X_aux, y_aux = X2, y2
+            normal_instances_balanced.append(X_aux)
+            classes_balanced.append(y_aux)
 
         opposite_instances_balanced = [
             np.select([instance == 0, instance == 1], [1, 0], instance)
