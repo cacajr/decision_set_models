@@ -113,17 +113,17 @@ class Binarize:
                 continue
 
             elif unique_values.size == 2:
-                self.__make_binary_columns(feat, data_frame[feat])
+                self.__create_binary_columns(feat, data_frame[feat])
 
                 qtts_columns_per_feature_label.append(1)
 
             elif index_feat in categorical_columns_index:
-                new_feats = self.__make_categorical_columns(feat, data_frame[feat])
+                new_feats = self.__create_categorical_columns(feat, data_frame[feat])
 
                 qtts_columns_per_feature_label.append(len(new_feats))
 
             elif 'float' in unique_values_dtype or 'int' in unique_values_dtype:
-                new_feats = self.__make_ordinal_columns(
+                new_feats = self.__create_ordinal_columns(
                     feat,
                     data_frame[feat], 
                     number_quantiles_ordinal_columns
@@ -157,7 +157,7 @@ class Binarize:
             }
         )
 
-    def __make_binary_columns(self, feature, column):
+    def __create_binary_columns(self, feature, column):
         binarized_columns = pd.get_dummies(column)
         new_feats = binarized_columns.columns
         binarized_columns = binarized_columns.set_axis(
@@ -183,7 +183,7 @@ class Binarize:
 
         return new_feats
 
-    def __make_categorical_columns(self, feature, column):
+    def __create_categorical_columns(self, feature, column):
         binarized_columns = pd.get_dummies(column)
         new_feats = binarized_columns.columns
 
@@ -211,7 +211,7 @@ class Binarize:
 
         return new_feats
 
-    def __make_ordinal_columns(self, feature, column, number_quantiles_ordinal_columns):
+    def __create_ordinal_columns(self, feature, column, number_quantiles_ordinal_columns):
         new_feats = column.quantile(
             [
                 n/number_quantiles_ordinal_columns 
