@@ -20,7 +20,7 @@ class Binarize:
 
         number_partitions: must be an integer that represents the number of 
         partitions.
-        
+
         balance_instances: must be a boolean that represents whether each 
         partition of the dataset should have balanced classes
 
@@ -321,27 +321,32 @@ class Binarize:
     def get_qtt_binarized_feat_per_original_feat(self):
         return self.__qtts_columns_per_feature_label
 
-    def get_normal_instances(self, partition = 1):
-        self.__partition_validate(partition)
+    def get_normal_instances(self, partition = 0):
+        if not self.__partition_validate(partition):
+            return self.__binarized_normal_instances
         
         return self.__binarized_normal_instances[partition - 1]
 
-    def get_classes(self, partition = 1):
-        self.__partition_validate(partition)
+    def get_classes(self, partition = 0):
+        if not self.__partition_validate(partition):
+            return self.__binarized_classes
         
         return self.__binarized_classes[partition - 1]
 
-    def get_opposite_instances(self, partition = 1):
-        self.__partition_validate(partition)
+    def get_opposite_instances(self, partition = 0):
+        if not self.__partition_validate(partition):
+            return self.__binarized_opposite_instances
 
         return self.__binarized_opposite_instances[partition - 1]
 
     def __partition_validate(self, partition):
         if partition < 1 or partition > self.__number_partitions: 
-            raise Exception(f'Partition {partition} is out of range')
+            return False
         
         if type(partition) not in [int, float]: 
-            raise Exception(f'Partition {partition} is invalid')
+            return False
+        
+        return True
 
     def get_number_partitions(self):
         return self.__number_partitions
