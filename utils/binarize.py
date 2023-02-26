@@ -341,8 +341,6 @@ class Binarize:
         
         if type(partition) not in [int, float]: 
             raise Exception(f'Partition {partition} is invalid')
-        
-        pass
 
     def get_number_partitions(self):
         return self.__number_partitions
