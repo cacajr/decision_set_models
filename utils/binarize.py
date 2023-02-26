@@ -12,7 +12,7 @@ class Binarize:
         series: must be a binary series (yes/no, 0/1, mas/fem, etc) that save the 
         class/target/y of the dataset
 
-        categorical_columns_index: must be a array with columns index that have 
+        categorical_columns_index: must be a list with columns index that have 
         categorical data.
 
         number_quantiles_ordinal_columns: must be an integer that represents the 
@@ -28,11 +28,20 @@ class Binarize:
     def __init__(self, 
             data_frame = pd.DataFrame([]),
             series = pd.Series([], dtype='object'),
-            categorical_columns_index = pd.array([]),
+            categorical_columns_index = [],
             number_quantiles_ordinal_columns = 5,
             balance_instances = True,
             number_partitions = 1
         ):
+
+        self.__validate_init_params(
+            data_frame,
+            series,
+            categorical_columns_index,
+            number_quantiles_ordinal_columns,
+            balance_instances,
+            number_partitions
+        )
 
         self.__normal_features_labels = pd.array([])
         self.__opposite_features_labels = pd.array([])
@@ -55,6 +64,34 @@ class Binarize:
 
         self.__separate_partitions(balance_instances)
 
+    def __validate_init_params(self,
+            data_frame,
+            series,
+            categorical_columns_index,
+            number_quantiles_ordinal_columns,
+            balance_instances,
+            number_partitions
+        ):
+
+        if type(data_frame) != pd.DataFrame:
+            raise Exception('Param data_frame must be a pandas.DataFrame')
+        if type(series) != pd.Series:
+            raise Exception('Param series must be a pandas.Series')
+        if type(categorical_columns_index) is not list:
+            raise Exception('Param categorical_columns_index must be a list')
+        if type(number_quantiles_ordinal_columns) is not int:
+            raise Exception('Param number_quantiles_ordinal_columns must be an int')
+        if type(balance_instances) is not bool:
+            raise Exception('Param balance_instances must be a bool')
+        if type(number_partitions) is not int:
+            raise Exception('Param number_partitions must be an int')
+        
+        if series.size != data_frame.index.size:
+            raise Exception('Param series must be the same size as the data_frame.index')
+        if series.unique().size != 2:
+            raise Exception('Param series must be binary (0/1, yes/no, etc)')
+        if number_partitions < 1 or number_partitions > data_frame.index.size:
+            raise Exception("Param number_partitions is out of range data_frame's size")
 
     def __binarize(self, 
             data_frame,
@@ -112,9 +149,6 @@ class Binarize:
         )
 
         unique_values = np.sort(series.unique())
-        if unique_values.size != 2:
-            raise Exception('The param series (column class/target/y) must be binary')
-
         self.__binarized_classes = series.replace(
             {
                 unique_values[0]: 0, 
@@ -226,12 +260,6 @@ class Binarize:
         return new_feats
 
     def __separate_partitions(self, balance_instances):
-        # if the number of partitions is greater than the number of instances, empty
-        # partitions will be created. TODO: validation to compare if number of partitions
-        # is greater than number of instances
-        if self.__number_partitions < 1 or type(self.__number_partitions) is not int:
-            raise Exception('Number of partitions is invalid')
-
         data_frame_binarized = self.__binarized_normal_instances
         series_binarized = self.__binarized_classes
 
