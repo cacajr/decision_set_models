@@ -18,11 +18,12 @@ class Binarize:
         number_quantiles_ordinal_columns: must be an integer that represents the 
         number of quantiles/columns that the new representation will have.
 
+        number_partitions: must be an integer that represents the number of 
+        partitions.
+        
         balance_instances: must be a boolean that represents whether each 
         partition of the dataset should have balanced classes
 
-        number_partitions: must be an integer that represents the number of 
-        partitions.
 
     '''
     def __init__(self, 
@@ -30,8 +31,8 @@ class Binarize:
             series = pd.Series([], dtype='object'),
             categorical_columns_index = [],
             number_quantiles_ordinal_columns = 5,
-            balance_instances = True,
-            number_partitions = 1
+            number_partitions = 1,
+            balance_instances = True
         ):
 
         self.__validate_init_params(
@@ -39,8 +40,8 @@ class Binarize:
             series,
             categorical_columns_index,
             number_quantiles_ordinal_columns,
-            balance_instances,
-            number_partitions
+            number_partitions,
+            balance_instances
         )
 
         self.__normal_features_labels = pd.array([])
@@ -69,8 +70,8 @@ class Binarize:
             series,
             categorical_columns_index,
             number_quantiles_ordinal_columns,
-            balance_instances,
-            number_partitions
+            number_partitions,
+            balance_instances
         ):
 
         if type(data_frame) != pd.DataFrame:
@@ -81,10 +82,10 @@ class Binarize:
             raise Exception('Param categorical_columns_index must be a list')
         if type(number_quantiles_ordinal_columns) is not int:
             raise Exception('Param number_quantiles_ordinal_columns must be an int')
-        if type(balance_instances) is not bool:
-            raise Exception('Param balance_instances must be a bool')
         if type(number_partitions) is not int:
             raise Exception('Param number_partitions must be an int')
+        if type(balance_instances) is not bool:
+            raise Exception('Param balance_instances must be a bool')
         
         if series.size != data_frame.index.size:
             raise Exception('Param series must be the same size as the data_frame.index')
