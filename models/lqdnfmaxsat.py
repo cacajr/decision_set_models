@@ -63,15 +63,13 @@ class LQDNFMaxSAT:
             # Solver response passing wcnf_formula
 
     def __create_wcnf_formula(self, previous_solution, X_norm, X_opp, y):
-        if len(previous_solution) == 0:
-            pass
-        else:
-            pass
+        wcnf_formula = WCNF()
 
-        # TODO: restrictions created in both cases: len(previous_solution)
-        # equal 0 or len(previous_solution) different 0
+        # TODO: l-QDNFSAT restrictions
 
         self.__reset_literals()
+
+        return wcnf_formula
 
     def __x(self, i, j, t):
         return self.__literals.id(f'x{i}{j}{t}')
