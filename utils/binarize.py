@@ -327,17 +327,18 @@ class Binarize:
         
         return self.__binarized_normal_instances[partition - 1]
 
+    def get_opposite_instances(self, partition = 0):
+        if not self.__partition_validate(partition):
+            return self.__binarized_opposite_instances
+
+        return self.__binarized_opposite_instances[partition - 1]
+    
     def get_classes(self, partition = 0):
         if not self.__partition_validate(partition):
             return self.__binarized_classes
         
         return self.__binarized_classes[partition - 1]
 
-    def get_opposite_instances(self, partition = 0):
-        if not self.__partition_validate(partition):
-            return self.__binarized_opposite_instances
-
-        return self.__binarized_opposite_instances[partition - 1]
 
     def __partition_validate(self, partition):
         if partition < 1 or partition > self.__number_partitions: 

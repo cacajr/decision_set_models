@@ -4,12 +4,12 @@ from pysat.formula import IDPool
 from pysat.formula import WCNF
 
 
-class xpto:
+class LQDNFMaxSAT:
     def __init__(self,
             number_rules = 1,
             max_size_each_rule = 5,
             rules_accuracy_weight = 10,
-            time_out = 1024,
+            time_out_each_partition = 1024,
             categorical_columns_index=[],
             number_quantiles_ordinal_columns=5,
             number_partitions = 1,
@@ -21,13 +21,15 @@ class xpto:
         self.__number_rules = number_rules
         self.__max_size_each_rule = max_size_each_rule
         self.__rules_accuracy_weight = rules_accuracy_weight
-        self.__time_out = time_out
+        self.__time_out_each_partition = time_out_each_partition
         self.__categorical_columns_index = categorical_columns_index
         self.__number_quantiles_ordinal_columns = number_quantiles_ordinal_columns
         self.__number_partitions = number_partitions
         self.__balance_instances = balance_instances
 
         self.__dataset_binarized = Binarize
+
+        self.__literals = IDPool()
 
     def fit(self, X, y):
         self.__dataset_binarized = Binarize(
@@ -61,10 +63,27 @@ class xpto:
             # Solver response passing wcnf_formula
 
     def __create_wcnf_formula(self, previous_solution, X_norm, X_opp, y):
-        # TODO: create the literals with IDPool including 
-        # previous_solution in logic
+        if len(previous_solution) == 0:
+            pass
+        else:
+            pass
 
-        pass
+        # TODO: restrictions created in both cases: len(previous_solution)
+        # equal 0 or len(previous_solution) different 0
+
+        self.__reset_literals()
+
+    def __x(self, i, j, t):
+        return self.__literals.id(f'x{i}{j}{t}')
+    
+    def __x(self, i, j):
+        return self.__literals.id(f'x{i}{j}*')
+    
+    def __p(self, i, j):
+        return self.__literals.id(f'p{i}{j}')
+
+    def __reset_literals(self):
+        self.__literals = IDPool()
 
     def get_rules(self):
         pass
