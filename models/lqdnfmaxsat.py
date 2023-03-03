@@ -30,6 +30,7 @@ class LQDNFMaxSAT:
         self.__dataset_binarized = Binarize
 
         self.__literals = IDPool()
+        self.__solver_solution = []
 
     def fit(self, X, y):
         self.__dataset_binarized = Binarize(
@@ -45,7 +46,6 @@ class LQDNFMaxSAT:
         X_opposite_partitions = self.__dataset_binarized.get_opposite_instances()
         y_partitions = self.__dataset_binarized.get_classes()
 
-        solver_solution = []
         for X_normal_partition, X_opposite_partition, y_partition in zip(
                 X_normal_partitions,
                 X_opposite_partitions,
@@ -53,32 +53,69 @@ class LQDNFMaxSAT:
             ):
 
             wcnf_formula = self.__create_wcnf_formula(
-                solver_solution,
+                self.__solver_solution,
                 X_normal_partition,
                 X_opposite_partition,
                 y_partition
             )
 
-            # TODO: update the solver_solution variable with the MAXSat 
-            # Solver response passing wcnf_formula
+            # WARNING: this line is used just if the solver is a binary
+            wcnf_formula.to_file('./models/wcnf_formula.wcnf')
+            
+            self.__reset_literals()
+
+            # TODO: update the self.__solver_solution variable with the 
+            # MAXSat Solver response passing wcnf_formula
 
     def __create_wcnf_formula(self, previous_solution, X_norm, X_opp, y):
+        features = self.__dataset_binarized.get_normal_features_label()
         wcnf_formula = WCNF()
 
-        # TODO: l-QDNFSAT restrictions
+        # (7.5)
+        for i in range(self.__number_rules):    # i ∈ {1, ..., m}
+            for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
+                clause = []
+                for t in features:  # t ∈ Φ U {*}
+                    clause.append(self.__x(i,j,t))
+                clause.append(self.__x(i,j))
 
-        self.__reset_literals()
+                wcnf_formula.append(clause)
+        
+        # (7.6)
+        for i in range(self.__number_rules):    # i ∈ {1, ..., m}
+            for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
+                clauses = []
+                for i_t, t in enumerate(features):  # t ∈ Φ U {*}
+                    for tl in features[i_t+1:]:  # t' ∈ Φ U {*}
+                        clauses.append([-self.__x(i,j,t), -self.__x(i,j,tl)])
+                    clauses.append([-self.__x(i,j,t), -self.__x(i,j)])
+                
+                wcnf_formula.extend(clauses)
+        
+        # (7.7)
+        for i in range(self.__number_rules):    # i ∈ {1, ..., m}
+            clause = []
+            for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
+                clause.append(-self.__x(i,j))
+
+            wcnf_formula.append(clause)
 
         return wcnf_formula
 
-    def __x(self, i, j, t):
-        return self.__literals.id(f'x{i}{j}{t}')
-    
-    def __x(self, i, j):
+    def __x(self, i, j, t = None):
+        if t != None:
+            return self.__literals.id(f'x{i}{j}{t}')
+        
         return self.__literals.id(f'x{i}{j}*')
     
     def __p(self, i, j):
         return self.__literals.id(f'p{i}{j}')
+    
+    def __y(self, i, j, w):
+        return self.__literals.id(f'y{i}{j}{w}')
+    
+    def __z(self, i, w):
+        return self.__literals.id(f'z{i}{w}')
 
     def __reset_literals(self):
         self.__literals = IDPool()
