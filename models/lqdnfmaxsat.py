@@ -32,11 +32,11 @@ class LQDNFMaxSAT:
         self.__dataset_binarized = Binarize
 
         self.__literals = IDPool()
-        self.__solver_solution = []
+        self.__solver_solution = list([])
 
-        self.__rules_features = []
-        self.__rules_indexes = []
-        self.__rules_features_string = ''
+        self.__rules_features = list([])
+        self.__rules_columns = list([])
+        self.__rules_features_string = str('')
 
     def fit(self, X, y):
         self.__dataset_binarized = Binarize(
@@ -189,7 +189,7 @@ class LQDNFMaxSAT:
         p_literals = self.__get_p_literals(normal_features, X_norm)
 
         rules_features = [[] for _ in range(self.__number_rules)]
-        rules_indexes = [[] for _ in range(self.__number_rules)]
+        rules_columns = [[] for _ in range(self.__number_rules)]
         
         for i in range(self.__number_rules):    # i ∈ {1, ..., m}
             for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
@@ -197,13 +197,13 @@ class LQDNFMaxSAT:
                     if self.__x(i,j,t) in x_literals:
                         if self.__p(i,j) in p_literals:
                             rules_features[i].append(normal_features[t])
-                            rules_indexes[i].append(t)
+                            rules_columns[i].append(t+1)
                         else:
                             rules_features[i].append(opposite_features[t])
-                            rules_indexes[i].append(-t)
+                            rules_columns[i].append(-(t+1))
 
-        self.__rules_indexes = rules_indexes
         self.__rules_features = rules_features
+        self.__rules_columns = rules_columns
         self.__rules_features_string = self.__create_rules_features_string(rules_features)
 
     def __create_rules_features_string(self, rules_features):
