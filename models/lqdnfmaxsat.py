@@ -3,6 +3,7 @@ from utils.binarize import Binarize
 from pysat.formula import IDPool
 from pysat.formula import WCNF
 import numpy as np
+from pysat.examples.rc2 import RC2
 
 
 class LQDNFMaxSAT:
@@ -33,6 +34,10 @@ class LQDNFMaxSAT:
         self.__literals = IDPool()
         self.__solver_solution = []
 
+        self.__rules_features = []
+        self.__rules_indexes = []
+        self.__rules_features_string = ''
+
     def fit(self, X, y):
         self.__dataset_binarized = Binarize(
             data_frame=X,
@@ -47,9 +52,11 @@ class LQDNFMaxSAT:
         X_opposite_partitions = self.__dataset_binarized.get_opposite_instances()
         y_partitions = self.__dataset_binarized.get_classes()
 
-        for X_normal_partition, y_partition in zip(
-                X_normal_partitions,
-                y_partitions
+        for index_partition, (X_normal_partition, y_partition) in enumerate(
+                zip(
+                    X_normal_partitions,
+                    y_partitions
+                )
             ):
 
             wcnf_formula = self.__create_wcnf_formula(
@@ -58,13 +65,22 @@ class LQDNFMaxSAT:
                 y_partition
             )
 
-            # WARNING: this line is used just if the solver is a binary
+            # TODO: add a new MaxSAT solver option
+            # WARNING: this line is used just if the solver is a binary or to
+            # test
             wcnf_formula.to_file('./models/wcnf_formula.wcnf')
 
-            self.__reset_literals()
+            self.__solver_solution = RC2(wcnf_formula).compute()
 
-            # TODO: update the self.__solver_solution variable with the 
-            # MAXSat Solver response passing wcnf_formula
+            if self.__solver_solution == None:
+                raise Exception(f'Partition {index_partition + 1} unsatisfiable')
+
+            # TODO: add time and time out calculate
+
+            if index_partition == self.__number_partitions - 1:
+                self.__create_rules(X_normal_partition)
+
+            self.__reset_literals()
 
     def __create_wcnf_formula(self, previous_solution, X_norm, y):
         features = self.__dataset_binarized.get_normal_features_label()
@@ -165,8 +181,67 @@ class LQDNFMaxSAT:
     def __reset_literals(self):
         self.__literals = IDPool()
 
+    def __create_rules(self, X_norm):
+        normal_features = self.__dataset_binarized.get_normal_features_label()
+        opposite_features = self.__dataset_binarized.get_opposite_features_label()
+
+        x_literals = self.__get_x_literals(normal_features)
+        p_literals = self.__get_p_literals(normal_features, X_norm)
+
+        rules_features = [[] for _ in range(self.__number_rules)]
+        rules_indexes = [[] for _ in range(self.__number_rules)]
+        
+        for i in range(self.__number_rules):    # i ∈ {1, ..., m}
+            for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
+                for t in range(len(normal_features)):  # t ∈ Φ U {*}
+                    if self.__x(i,j,t) in x_literals:
+                        if self.__p(i,j) in p_literals:
+                            rules_features[i].append(normal_features[t])
+                            rules_indexes[i].append(t)
+                        else:
+                            rules_features[i].append(opposite_features[t])
+                            rules_indexes[i].append(-t)
+
+        self.__rules_indexes = rules_indexes
+        self.__rules_features = rules_features
+        self.__rules_features_string = self.__create_rules_features_string(rules_features)
+
+    def __create_rules_features_string(self, rules_features):
+        rules_features_string = ''
+        for i in range(len(rules_features)):
+            rules_features_string += '('
+            for j in range(len(rules_features[i])):
+                rules_features_string += str(rules_features[i][j])
+
+                if j < len(rules_features[i]) - 1:
+                    rules_features_string += ' and '
+                else:
+                    rules_features_string += ')'
+            
+            if i < len(rules_features) - 1:
+                rules_features_string += ' or '
+        
+        return rules_features_string
+
+    def __get_x_literals(self, features):
+        number_features = len(features)
+        start = 0
+        end = (number_features + 1) * self.__number_rules * self.__max_size_each_rule
+        
+        return self.__solver_solution[start:end]
+
+    def __get_p_literals(self, features, X_norm):
+        number_features = len(features)
+        number_instances = len(X_norm)
+        start = (number_features + 1) * self.__number_rules * self.__max_size_each_rule
+        end = start + ((number_instances + 1) * self.__number_rules * self.__max_size_each_rule)
+
+        p_literals_region = self.__solver_solution[start:end]
+
+        return p_literals_region[1::number_instances + 1]
+
     def get_rules(self):
-        pass
+        return self.__rules_features_string
 
     def predict(self, instance):
         pass
