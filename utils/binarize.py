@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from utils.functions import findIndexUniqueValues
 
 
 class Binarize:
@@ -53,6 +54,8 @@ class Binarize:
         self.__binarized_opposite_instances = pd.DataFrame([])
         self.__binarized_classes = pd.Series([], dtype='object')
         # -----------------------------------------------------------------------
+
+        self.__original_to_binarized_values = list([])
 
         self.__number_partitions = number_partitions
 
@@ -108,17 +111,19 @@ class Binarize:
             unique_values_dtype = str(unique_values.dtype)
 
             if unique_values.size == 1:
+                self.__original_to_binarized_values.append({})
+
                 qtts_columns_per_feature_label.append(0)
 
                 continue
 
             elif unique_values.size == 2:
-                self.__create_binary_columns(feat, data_frame[feat])
+                self.__create_binary_columns(feat, data_frame[feat], unique_values)
 
                 qtts_columns_per_feature_label.append(1)
 
             elif index_feat in categorical_columns_index:
-                new_feats = self.__create_categorical_columns(feat, data_frame[feat])
+                new_feats = self.__create_categorical_columns(feat, data_frame[feat], unique_values)
 
                 qtts_columns_per_feature_label.append(len(new_feats))
 
@@ -157,13 +162,21 @@ class Binarize:
             }
         )
 
-    def __create_binary_columns(self, feature, column):
+    def __create_binary_columns(self, feature, column, unique_values):
         binarized_columns = pd.get_dummies(column)
         new_feats = binarized_columns.columns
         binarized_columns = binarized_columns.set_axis(
             [f'{feature} {label}' for label in new_feats],
             axis='columns'
         )
+
+        # adding original to binaryzed valus map --------------------------------
+        unique_values_indexes = findIndexUniqueValues(column, unique_values)
+        values_map = {}
+        for index in unique_values_indexes:
+            values_map[column[index]] = binarized_columns.iloc[index].values[0]
+        self.__original_to_binarized_values.append(values_map)
+        # -----------------------------------------------------------------------
 
         self.__binarized_normal_instances = pd.concat(
             [
@@ -183,9 +196,17 @@ class Binarize:
 
         return new_feats
 
-    def __create_categorical_columns(self, feature, column):
+    def __create_categorical_columns(self, feature, column, unique_values):
         binarized_columns = pd.get_dummies(column)
         new_feats = binarized_columns.columns
+
+        # adding original to binaryzed valus map --------------------------------
+        unique_values_indexes = findIndexUniqueValues(column, unique_values)
+        values_map = {}
+        for index in unique_values_indexes:
+            values_map[column[index]] = binarized_columns.iloc[index].values
+        self.__original_to_binarized_values.append(values_map)
+        # -----------------------------------------------------------------------
 
         self.__binarized_normal_instances = pd.concat(
             [
@@ -235,6 +256,13 @@ class Binarize:
             ]
             binarized_columns.loc[indexs_one, col] = 1
             binarized_columns.loc[indexs_zero, col] = 0
+
+        # adding original to binaryzed valus map --------------------------------
+        values_map = {}
+        for quantile in new_feats:
+            values_map[quantile] = 0
+        self.__original_to_binarized_values.append(values_map)
+        # -----------------------------------------------------------------------
 
         self.__binarized_normal_instances = pd.concat(
             [
@@ -348,6 +376,9 @@ class Binarize:
             return False
         
         return True
+
+    def get_original_to_binarized_values(self):
+        return self.__original_to_binarized_values
 
     def get_number_partitions(self):
         return self.__number_partitions
