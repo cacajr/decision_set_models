@@ -2,6 +2,7 @@ import pandas as pd
 from utils.binarize import Binarize
 from pysat.formula import IDPool
 from pysat.formula import WCNF
+import numpy as np
 
 
 class LQDNFMaxSAT:
@@ -46,28 +47,26 @@ class LQDNFMaxSAT:
         X_opposite_partitions = self.__dataset_binarized.get_opposite_instances()
         y_partitions = self.__dataset_binarized.get_classes()
 
-        for X_normal_partition, X_opposite_partition, y_partition in zip(
+        for X_normal_partition, y_partition in zip(
                 X_normal_partitions,
-                X_opposite_partitions,
                 y_partitions
             ):
 
             wcnf_formula = self.__create_wcnf_formula(
                 self.__solver_solution,
                 X_normal_partition,
-                X_opposite_partition,
                 y_partition
             )
 
             # WARNING: this line is used just if the solver is a binary
             wcnf_formula.to_file('./models/wcnf_formula.wcnf')
-            
+
             self.__reset_literals()
 
             # TODO: update the self.__solver_solution variable with the 
             # MAXSat Solver response passing wcnf_formula
 
-    def __create_wcnf_formula(self, previous_solution, X_norm, X_opp, y):
+    def __create_wcnf_formula(self, previous_solution, X_norm, y):
         features = self.__dataset_binarized.get_normal_features_label()
         wcnf_formula = WCNF()
 
@@ -75,30 +74,76 @@ class LQDNFMaxSAT:
         for i in range(self.__number_rules):    # i ∈ {1, ..., m}
             for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
                 clause = []
-                for t in features:  # t ∈ Φ U {*}
+                for t in range(len(features)):  # t ∈ Φ U {*}
                     clause.append(self.__x(i,j,t))
                 clause.append(self.__x(i,j))
 
                 wcnf_formula.append(clause)
         
         # (7.6)
-        for i in range(self.__number_rules):    # i ∈ {1, ..., m}
-            for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
-                clauses = []
-                for i_t, t in enumerate(features):  # t ∈ Φ U {*}
-                    for tl in features[i_t+1:]:  # t' ∈ Φ U {*}
-                        clauses.append([-self.__x(i,j,t), -self.__x(i,j,tl)])
-                    clauses.append([-self.__x(i,j,t), -self.__x(i,j)])
-                
-                wcnf_formula.extend(clauses)
+        for i in range(self.__number_rules):
+            for j in range(self.__max_size_each_rule):
+                for t in range(len(features)):
+                    for tl in range(t+1, len(features)):
+                        wcnf_formula.append([-self.__x(i,j,t), -self.__x(i,j,tl)])
+                    wcnf_formula.append([-self.__x(i,j,t), -self.__x(i,j)])
         
         # (7.7)
-        for i in range(self.__number_rules):    # i ∈ {1, ..., m}
+        for i in range(self.__number_rules):
             clause = []
-            for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
+            for j in range(self.__max_size_each_rule):
                 clause.append(-self.__x(i,j))
-
+            
             wcnf_formula.append(clause)
+
+        # (7.8)
+        for i in range(self.__number_rules):
+            for j in range(self.__max_size_each_rule):
+                for t in range(len(features)):
+                    for w, instance in enumerate(X_norm):    # w ∈ P U N
+                        literal_y = int
+                        if instance[t] == 0:
+                            literal_y = -self.__y(i,j,w)
+                        else:
+                            literal_y = self.__y(i,j,w)
+
+                        wcnf_formula.append(
+                            [-self.__x(i,j,t), -self.__p(i,j), literal_y]
+                        )
+                        wcnf_formula.append(
+                            [-self.__x(i,j,t), self.__p(i,j), -literal_y]
+                        )
+
+        # (7.9)
+        for i in range(self.__number_rules):
+            for j in range(self.__max_size_each_rule):
+                for w in range(len(X_norm)):
+                    wcnf_formula.append([-self.__x(i,j), self.__y(i,j,w)])
+
+        # (7.10)
+        for i in range(self.__number_rules):
+            for w in range(len(X_norm)):
+                clauses = []
+                clause = [self.__z(i,w)]
+                for j in range(self.__max_size_each_rule):
+                    clauses.append([-self.__z(i,w), self.__y(i,j,w)])
+                    clause.append(-self.__y(i,j,w))
+                clauses.append(clause)
+
+                wcnf_formula.extend(clauses)
+
+        # (7.11)
+        for u in np.where(y == 1)[0]:    # u ∈ P
+            clause = []
+            for i in range(self.__number_rules):
+                clause.append(self.__z(i,u))
+            
+            wcnf_formula.append(clause)
+
+        # (7.12)
+        for v in np.where(y == 0)[0]:    # v ∈ N
+            for i in range(self.__number_rules):
+                wcnf_formula.append([-self.__z(i,v)])
 
         return wcnf_formula
 
