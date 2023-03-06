@@ -154,13 +154,21 @@ class Binarize:
             qtts_columns_per_feature_label
         )
 
-        unique_values = np.sort(series.unique())
+        series_unique_values = np.sort(series.unique())
         self.__binarized_classes = series.replace(
             {
-                unique_values[0]: 0, 
-                unique_values[1]: 1
+                series_unique_values[0]: 0, 
+                series_unique_values[1]: 1
             }
         )
+
+        # adding binarized to original values map in the last column (class) ----
+        unique_values_indexes = findIndexUniqueValues(series, series_unique_values)
+        values_map = {}
+        for index in unique_values_indexes:
+            values_map[self.__binarized_classes[index]] = series[index]
+        self.__original_to_binarized_values.append(values_map)
+        # -----------------------------------------------------------------------
 
     def __create_binary_columns(self, feature, column, unique_values):
         binarized_columns = pd.get_dummies(column)
@@ -170,7 +178,7 @@ class Binarize:
             axis='columns'
         )
 
-        # adding original to binaryzed valus map --------------------------------
+        # adding original to binarized values map --------------------------------
         unique_values_indexes = findIndexUniqueValues(column, unique_values)
         values_map = {}
         for index in unique_values_indexes:
@@ -200,7 +208,7 @@ class Binarize:
         binarized_columns = pd.get_dummies(column)
         new_feats = binarized_columns.columns
 
-        # adding original to binaryzed valus map --------------------------------
+        # adding original to binarized values map --------------------------------
         unique_values_indexes = findIndexUniqueValues(column, unique_values)
         values_map = {}
         for index in unique_values_indexes:
