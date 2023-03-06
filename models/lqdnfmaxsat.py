@@ -244,7 +244,49 @@ class LQDNFMaxSAT:
         return self.__rules_features_string
 
     def predict(self, instance):
-        pass
+        self.__validate_instance(instance)
+
+        instance_binarized = self.__binarize_instance(instance)
+
+        print(self.__rules_features_string)
+        print(self.__rules_columns)
+        print(instance_binarized)
+                
+
+    def __validate_instance(self, instance):
+        qtt_binarized_feat = self.__dataset_binarized.get_qtt_binarized_feat_per_original_feat()
+
+        if type(instance) not in [list, pd.array, np.array, np.ndarray]:
+            raise Exception('Param instance must be a list, pd.array, np.array or np.ndarray')
+        if len(instance) != len(qtt_binarized_feat):
+            raise Exception('Param instance with number of features invalid')
+        
+        return True
+
+    def __binarize_instance(self, instance):
+        instance_binarized = []
+
+        original_to_binarized = self.__dataset_binarized.get_original_to_binarized_values()
+        qtt_binarized_feat = self.__dataset_binarized.get_qtt_binarized_feat_per_original_feat()
+
+        for i_num_feat, num_feat in enumerate(qtt_binarized_feat):
+            if num_feat == 0:
+                continue
+            elif num_feat == 1:
+                instance_binarized.append(original_to_binarized[i_num_feat][instance[i_num_feat]])
+            elif i_num_feat in self.__categorical_columns_index:
+                for num in original_to_binarized[i_num_feat][instance[i_num_feat]]:
+                    instance_binarized.append(num)
+            elif type(instance[i_num_feat]) in [int, float]:
+                for quantis in original_to_binarized[i_num_feat].keys():
+                    if instance[i_num_feat] <= quantis:
+                        instance_binarized.append(1)
+                    else:
+                        instance_binarized.append(0)
+            else:
+                raise Exception(f'Feature with value {instance[i_num_feat]} invalid')
+
+        return instance_binarized
 
     def score(self):
-        pass
+        print(self.__dataset_binarized.get_normal_instances())
