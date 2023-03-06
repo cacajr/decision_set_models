@@ -246,12 +246,14 @@ class LQDNFMaxSAT:
     def predict(self, instance):
         self.__validate_instance(instance)
 
-        instance_binarized = self.__binarize_instance(instance)
+        binarized_to_original_class = self.__dataset_binarized.get_original_to_binarized_values()[-1]
+        normal_instance_binarized, opposite_instance_binarized = self.__binarize_instance(instance)
+        
+        predict = binarized_to_original_class[
+            self.__aplicate_DNF_rules(normal_instance_binarized, opposite_instance_binarized)
+        ]
 
-        print(self.__rules_features_string)
-        print(self.__rules_columns)
-        print(instance_binarized)
-                
+        return predict
 
     def __validate_instance(self, instance):
         qtt_binarized_feat = self.__dataset_binarized.get_qtt_binarized_feat_per_original_feat()
@@ -264,29 +266,72 @@ class LQDNFMaxSAT:
         return True
 
     def __binarize_instance(self, instance):
-        instance_binarized = []
+        normal_instance_binarized = []
 
-        original_to_binarized = self.__dataset_binarized.get_original_to_binarized_values()
+        original_to_binarized = self.__dataset_binarized.get_original_to_binarized_values()[:-1]
         qtt_binarized_feat = self.__dataset_binarized.get_qtt_binarized_feat_per_original_feat()
 
         for i_num_feat, num_feat in enumerate(qtt_binarized_feat):
             if num_feat == 0:
                 continue
             elif num_feat == 1:
-                instance_binarized.append(original_to_binarized[i_num_feat][instance[i_num_feat]])
+                normal_instance_binarized.append(original_to_binarized[i_num_feat][instance[i_num_feat]])
             elif i_num_feat in self.__categorical_columns_index:
                 for num in original_to_binarized[i_num_feat][instance[i_num_feat]]:
-                    instance_binarized.append(num)
-            elif type(instance[i_num_feat]) in [int, float]:
+                    normal_instance_binarized.append(num)
+            elif type(instance[i_num_feat]) in [
+                    int, np.int16, np.int32, np.int64, float, 
+                    np.float16, np.float32, np.float64
+                ]:
+
                 for quantis in original_to_binarized[i_num_feat].keys():
                     if instance[i_num_feat] <= quantis:
-                        instance_binarized.append(1)
+                        normal_instance_binarized.append(1)
                     else:
-                        instance_binarized.append(0)
+                        normal_instance_binarized.append(0)
             else:
                 raise Exception(f'Feature with value {instance[i_num_feat]} invalid')
 
-        return instance_binarized
+        opposite_instance_binarized = [
+            0 if num == 1 else 1
+            for num in normal_instance_binarized
+        ]
 
-    def score(self):
-        print(self.__dataset_binarized.get_normal_instances())
+        return normal_instance_binarized, opposite_instance_binarized
+
+    def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized):
+        predict = 0
+
+        for rule_columns in self.__rules_columns:
+            for column in rule_columns:
+                if column < 0:
+                    if opposite_instance_binarized[abs(column) - 1] == 0:
+                        predict = 0
+                        break
+                    else:
+                        predict = 1
+                else:
+                    if normal_instance_binarized[abs(column) - 1] == 0:
+                        predict = 0
+                        break
+                    else:
+                        predict = 1
+            if predict == 1:
+                break
+        
+        return predict
+
+    def score(self, X_test = pd.DataFrame, y_test = pd.Series):
+        if type(X_test) != pd.DataFrame or type(y_test) != pd.Series:
+            raise Exception(
+                'Params X_test and y_test must be a pd.DataFrame and pd.Series, respectively'
+            )
+
+        hits_count = 0
+        for i_line in range(X_test.index.size):
+            predict = self.predict(X_test.iloc[i_line].values)
+
+            if predict == y_test[i_line]:
+                hits_count += 1
+
+        return hits_count/y_test.size
