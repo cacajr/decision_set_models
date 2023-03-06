@@ -7,6 +7,33 @@ from pysat.examples.rc2 import RC2
 
 
 class LQDNFMaxSAT:
+    ''' Description of Params
+
+        number_rules: must be a integer and represents the number of rules/clauses
+        that the model will to generate
+
+        max_size_each_rule: must be a integer and represents the maximum number of
+        literals per rule/clause
+
+        rules_accuracy_weight: must be a integer and represents how accurate should
+        the rule be. The higher, the more accurate the rule should be
+
+        time_out_each_partition: must be an integer and represents the maximum
+        time in seconds that Solver has to solve one partition
+
+        categorical_columns_index: must be a list with columns index that have 
+        categorical data
+
+        number_quantiles_ordinal_columns: must be an integer that represents the 
+        number of quantiles/columns that the new representation will have
+
+        number_partitions: must be an integer that represents the number of 
+        partitions
+
+        balance_instances: must be a boolean that represents whether each 
+        partition of the dataset should have balanced classes
+
+    '''
     def __init__(self,
             number_rules = 1,
             max_size_each_rule = 5,

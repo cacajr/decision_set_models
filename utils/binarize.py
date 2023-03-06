@@ -8,23 +8,22 @@ class Binarize:
     ''' Description of Params
 
         data_frame: must be a dataframe that save the dataset without class/target/y
-        column.
+        column
 
         series: must be a binary series (yes/no, 0/1, mas/fem, etc) that save the 
         class/target/y of the dataset
 
         categorical_columns_index: must be a list with columns index that have 
-        categorical data.
+        categorical data
 
         number_quantiles_ordinal_columns: must be an integer that represents the 
-        number of quantiles/columns that the new representation will have.
+        number of quantiles/columns that the new representation will have
 
         number_partitions: must be an integer that represents the number of 
-        partitions.
+        partitions
 
         balance_instances: must be a boolean that represents whether each 
         partition of the dataset should have balanced classes
-
 
     '''
     def __init__(self, 
