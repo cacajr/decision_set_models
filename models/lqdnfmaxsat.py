@@ -117,12 +117,32 @@ class LQDNFMaxSAT:
         for i in range(self.__number_rules):    # i ∈ {1, ..., m}
             for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
                 clause = []
-                for t in range(len(features)):  # t ∈ Φ U {*}
+                for t in range(len(features)):  # t ∈ Φ ...
                     clause.append(self.__x(i,j,t))
-                clause.append(self.__x(i,j))
+                clause.append(self.__x(i,j))    # ... U {*}
 
                 wcnf_formula.append(clause)
         
+        # (7.5.1)
+        if len(previous_solution) == 0:
+            for i in range(self.__number_rules):
+                for j in range(self.__max_size_each_rule):
+                    for t in range(len(features)):
+                        wcnf_formula.append([-self.__x(i,j,t)], weight=1)
+        else:
+            x_literals = self.__get_x_literals(features)
+            start = 0
+            end = len(features)
+            while True:
+                for literal in x_literals[start:end]:
+                    wcnf_formula.append([literal], weight=1)
+                
+                start += len(features) + 1  # skipping xi,j* literals
+                end = start + len(features)
+
+                if start == len(x_literals):
+                    break
+
         # (7.6)
         for i in range(self.__number_rules):
             for j in range(self.__max_size_each_rule):
@@ -167,13 +187,16 @@ class LQDNFMaxSAT:
         for i in range(self.__number_rules):
             for w in range(len(X_norm)):
                 clauses = []
+                weights = []
                 clause = [self.__z(i,w)]
                 for j in range(self.__max_size_each_rule):
                     clauses.append([-self.__z(i,w), self.__y(i,j,w)])
+                    weights.append(self.__rules_accuracy_weight)
                     clause.append(-self.__y(i,j,w))
                 clauses.append(clause)
+                weights.append(self.__rules_accuracy_weight)
 
-                wcnf_formula.extend(clauses)
+                wcnf_formula.extend(clauses, weights=weights)
 
         # (7.11)
         for u in np.where(y == 1)[0]:    # u ∈ P
@@ -181,12 +204,15 @@ class LQDNFMaxSAT:
             for i in range(self.__number_rules):
                 clause.append(self.__z(i,u))
             
-            wcnf_formula.append(clause)
+            wcnf_formula.append(clause, weight= self.__rules_accuracy_weight)
 
         # (7.12)
         for v in np.where(y == 0)[0]:    # v ∈ N
             for i in range(self.__number_rules):
-                wcnf_formula.append([-self.__z(i,v)])
+                wcnf_formula.append(
+                    [-self.__z(i,v)], 
+                    weight= self.__rules_accuracy_weight
+                )
 
         return wcnf_formula
 
