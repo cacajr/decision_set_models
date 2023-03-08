@@ -129,19 +129,11 @@ class LQDNFMaxSAT:
                 for j in range(self.__max_size_each_rule):
                     for t in range(len(features)):
                         wcnf_formula.append([-self.__x(i,j,t)], weight=1)
+                    wcnf_formula.append([self.__x(i,j)], weight=1)
         else:
             x_literals = self.__get_x_literals(features)
-            start = 0
-            end = len(features)
-            while True:
-                for literal in x_literals[start:end]:
-                    wcnf_formula.append([literal], weight=1)
-                
-                start += len(features) + 1  # skipping xi,j* literals
-                end = start + len(features)
-
-                if start == len(x_literals):
-                    break
+            for literal in x_literals:
+                wcnf_formula.append([literal], weight=1)
 
         # (7.6)
         for i in range(self.__number_rules):
@@ -328,6 +320,8 @@ class LQDNFMaxSAT:
             if num_feat == 0:
                 continue
             elif num_feat == 1:
+                # TODO: adding key "Other" in the values map (Binarize) and add here
+                # the case that the map do not have the value binarized
                 normal_instance_binarized.append(original_to_binarized[i_num_feat][instance[i_num_feat]])
             elif i_num_feat in self.__categorical_columns_index:
                 for num in original_to_binarized[i_num_feat][instance[i_num_feat]]:
@@ -337,7 +331,7 @@ class LQDNFMaxSAT:
                     np.float16, np.float32, np.float64
                 ]:
 
-                for quantis in original_to_binarized[i_num_feat].keys():
+                for quantis in original_to_binarized[i_num_feat].values():
                     if instance[i_num_feat] <= quantis:
                         normal_instance_binarized.append(1)
                     else:
@@ -354,7 +348,6 @@ class LQDNFMaxSAT:
 
     def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized):
         predict = 0
-
         for rule_columns in self.__rules_columns:
             for column in rule_columns:
                 if column < 0:
@@ -371,7 +364,7 @@ class LQDNFMaxSAT:
                         predict = 1
             if predict == 1:
                 break
-        
+
         return predict
 
     def score(self, X_test = pd.DataFrame, y_test = pd.Series):
@@ -388,3 +381,6 @@ class LQDNFMaxSAT:
                 hits_count += 1
 
         return hits_count/y_test.size
+
+    def get_dataset_binarized(self):
+        return self.__dataset_binarized

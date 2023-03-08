@@ -266,8 +266,8 @@ class Binarize:
 
         # adding original to binaryzed valus map --------------------------------
         values_map = {}
-        for quantile in new_feats:
-            values_map[quantile] = 0
+        for i_quantile, quantile in enumerate(new_feats):
+            values_map[i_quantile] = quantile
         self.__original_to_binarized_values.append(values_map)
         # -----------------------------------------------------------------------
 
