@@ -250,6 +250,23 @@ class LQDNFMaxSAT:
         self.__rules_features = rules_features
         self.__rules_columns = rules_columns
         self.__rules_features_string = self.__create_rules_features_string(rules_features)
+    
+    def __get_x_literals(self, features):
+        number_features = len(features)
+        start = 0
+        end = (number_features + 1) * self.__number_rules * self.__max_size_each_rule
+        
+        return self.__solver_solution[start:end]
+
+    def __get_p_literals(self, features, X_norm):
+        number_features = len(features)
+        number_instances = len(X_norm)
+        start = (number_features + 1) * self.__number_rules * self.__max_size_each_rule
+        end = start + ((number_instances + 1) * self.__number_rules * self.__max_size_each_rule)
+
+        p_literals_region = self.__solver_solution[start:end]
+
+        return p_literals_region[1::number_instances + 1]
 
     def __create_rules_features_string(self, rules_features):
         rules_features_string = ''
@@ -267,23 +284,6 @@ class LQDNFMaxSAT:
                 rules_features_string += ' or '
         
         return rules_features_string
-
-    def __get_x_literals(self, features):
-        number_features = len(features)
-        start = 0
-        end = (number_features + 1) * self.__number_rules * self.__max_size_each_rule
-        
-        return self.__solver_solution[start:end]
-
-    def __get_p_literals(self, features, X_norm):
-        number_features = len(features)
-        number_instances = len(X_norm)
-        start = (number_features + 1) * self.__number_rules * self.__max_size_each_rule
-        end = start + ((number_instances + 1) * self.__number_rules * self.__max_size_each_rule)
-
-        p_literals_region = self.__solver_solution[start:end]
-
-        return p_literals_region[1::number_instances + 1]
 
     def get_rules(self):
         return self.__rules_features_string
