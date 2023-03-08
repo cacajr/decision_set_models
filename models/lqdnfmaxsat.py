@@ -69,6 +69,7 @@ class LQDNFMaxSAT:
 
         self.__literals = IDPool()
         self.__solver_solution = list([])
+        self.__total_time_solver_solutions = float
 
         self.__rules_features = list([])
         self.__rules_columns = list([])
@@ -130,19 +131,23 @@ class LQDNFMaxSAT:
             )
 
             # TODO: add a new MaxSAT solver option
-            # WARNING: this line is used just if the solver is a binary or to
-            # test
-            wcnf_formula.to_file('./models/wcnf_formula.wcnf')
 
-            self.__solver_solution = RC2(wcnf_formula).compute()
+            # WARNING: this line is used just to debug --------------------------------
+            wcnf_formula.to_file('./models/wcnf_formula.wcnf')
+            # -------------------------------------------------------------------------
+
+            solver = RC2(wcnf_formula)
+            self.__solver_solution = solver.compute()   # TODO: add time out calculate
+            self.__total_time_solver_solutions += solver.oracle_time()
 
             if self.__solver_solution == None:
                 raise Exception(f'Partition {index_partition + 1} unsatisfiable')
 
-            # TODO: add time and time out calculate
-
             if index_partition == self.__number_partitions - 1:
                 self.__create_rules(X_normal_partition)
+
+                # TODO: add pruning rules to cases: 
+                # (A ∧ A), (A <= 2 ∧ A <= 3) and (A <= 2 ∧ A > 2)
 
             self.__reset_literals()
 
@@ -421,3 +426,6 @@ class LQDNFMaxSAT:
 
     def get_dataset_binarized(self):
         return self.__dataset_binarized
+
+    def get_total_time_solver_solutions(self):
+        return self.__total_time_solver_solutions
