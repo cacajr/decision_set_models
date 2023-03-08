@@ -45,7 +45,16 @@ class LQDNFMaxSAT:
             balance_instances = True
         ):
 
-        # TODO: init params validation
+        self.__validate_init_params(
+            number_rules,
+            max_size_each_rule,
+            rules_accuracy_weight,
+            time_out_each_partition,
+            categorical_columns_index,
+            number_quantiles_ordinal_columns,
+            number_partitions,
+            balance_instances
+        )
 
         self.__number_rules = number_rules
         self.__max_size_each_rule = max_size_each_rule
@@ -64,6 +73,34 @@ class LQDNFMaxSAT:
         self.__rules_features = list([])
         self.__rules_columns = list([])
         self.__rules_features_string = str('')
+
+    def __validate_init_params(self,
+            number_rules,
+            max_size_each_rule,
+            rules_accuracy_weight,
+            time_out_each_partition,
+            categorical_columns_index,
+            number_quantiles_ordinal_columns,
+            number_partitions,
+            balance_instances
+        ):
+
+        if type(number_rules) is not int:
+            raise Exception('Param number_rules must be an int')
+        if type(max_size_each_rule) is not int:
+            raise Exception('Param max_size_each_rule must be an int')
+        if type(rules_accuracy_weight) is not int:
+            raise Exception('Param rules_accuracy_weight must be an int')
+        if type(time_out_each_partition) is not int:
+            raise Exception('Param time_out_each_partition must be an int')
+        if type(categorical_columns_index) is not list:
+            raise Exception('Param categorical_columns_index must be a list')
+        if type(number_quantiles_ordinal_columns) is not int:
+            raise Exception('Param number_quantiles_ordinal_columns must be an int')
+        if type(number_partitions) is not int:
+            raise Exception('Param number_partitions must be an int')
+        if type(balance_instances) is not bool:
+            raise Exception('Param balance_instances must be a bool')
 
     def fit(self, X, y):
         self.__dataset_binarized = Binarize(
