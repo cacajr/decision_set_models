@@ -69,7 +69,7 @@ class LQDNFMaxSAT:
 
         self.__literals = IDPool()
         self.__solver_solution = list([])
-        self.__total_time_solver_solutions = float
+        self.__total_time_solver_solutions = 0.0
 
         self.__rules_features = list([])
         self.__rules_columns = list([])
