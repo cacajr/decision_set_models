@@ -362,10 +362,10 @@ class LQDNFMaxSAT:
             if num_feat == 0:
                 continue
             elif num_feat == 1:
-                # TODO: adding key "Other" in the values map (Binarize) and add here
-                # the case that the map do not have the value binarized
                 normal_instance_binarized.append(original_to_binarized[i_num_feat][instance[i_num_feat]])
             elif i_num_feat in self.__categorical_columns_index:
+                # TODO: adding key "Other" in the values map (Binarize) and add here
+                # the case that the map do not have the value binarized
                 for num in original_to_binarized[i_num_feat][instance[i_num_feat]]:
                     normal_instance_binarized.append(num)
             elif type(instance[i_num_feat]) in [
