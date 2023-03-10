@@ -98,6 +98,8 @@ class LQDNFMaxSAT:
             raise Exception('Param categorical_columns_index must be a list')
         if type(number_quantiles_ordinal_columns) is not int:
             raise Exception('Param number_quantiles_ordinal_columns must be an int')
+        if number_quantiles_ordinal_columns <= 2:
+            raise Exception('Param number_quantiles_ordinal_columns must be greater than 2')
         if type(number_partitions) is not int:
             raise Exception('Param number_partitions must be an int')
         if type(balance_instances) is not bool:
@@ -145,9 +147,10 @@ class LQDNFMaxSAT:
 
             if index_partition == self.__number_partitions - 1:
                 self.__create_rules(X_normal_partition)
-
-                # TODO: add pruning rules to cases: 
-                # (A ∧ A), (A <= 2 ∧ A <= 3) and (A <= 2 ∧ A > 2)
+                self.__prune_rules()
+                self.__rules_features_string = self.__create_rules_features_string(
+                    self.__rules_features
+                )
 
             self.__reset_literals()
 
@@ -291,7 +294,6 @@ class LQDNFMaxSAT:
 
         self.__rules_features = rules_features
         self.__rules_columns = rules_columns
-        self.__rules_features_string = self.__create_rules_features_string(rules_features)
     
     def __get_x_literals(self, features):
         number_features = len(features)
@@ -309,6 +311,62 @@ class LQDNFMaxSAT:
         p_literals_region = self.__solver_solution[start:end]
 
         return p_literals_region[1::number_instances + 1]
+
+    def __prune_rules(self):
+        normal_features = self.__dataset_binarized.get_normal_features_label()
+        opposite_features = self.__dataset_binarized.get_opposite_features_label()
+
+        # removing repeated literal in the same rule: (... A ∧ A ...)
+        for i_rule, rule in enumerate(self.__rules_columns):
+            self.__rules_columns[i_rule] = list(set(rule))
+
+        # removing normal and opposite literals in the same rule: (... A ∧ ¬A ...)
+        for rule in self.__rules_columns:
+            for column in rule:
+                if -column in rule:
+                    rule.remove(column)
+                    rule.remove(-column)
+
+        # removing redundances in the same rule: (A <= 2 ∧ A <= 3) and (A > 2 ∧ A > 3)
+        ordinal_normal_index_columns = np.where([
+            feat.__contains__('<=') 
+            for feat in normal_features
+        ])[0]
+        ordinal_opposite_index_columns = np.where([
+            feat.__contains__('>') 
+            for feat in opposite_features
+        ])[0]
+        for i in range(0, len(ordinal_normal_index_columns), self.__number_quantiles_ordinal_columns-1):
+            for rule in self.__rules_columns:
+                ordinal_normal_columns = []
+                ordinal_opposite_columns = []
+                for column in rule:
+                    if column > 0:
+                        if column - 1 in ordinal_normal_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
+                            ordinal_normal_columns.append(column)
+                            rule.remove(column)
+                    else:
+                        if abs(column) - 1 in ordinal_opposite_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
+                            ordinal_opposite_columns.append(column)
+                            rule.remove(column)
+
+                if len(ordinal_normal_columns) > 0:
+                    rule.append(max(ordinal_normal_columns))
+                if len(ordinal_opposite_columns) > 0:
+                    rule.append(max(ordinal_opposite_columns))
+
+        # update self.__rules_features
+        rules_features = []
+        for rule in self.__rules_columns:
+            rule_features = []
+            for column in rule:
+                if column > 0:
+                    rule_features.append(normal_features[column-1])
+                else:
+                    rule_features.append(opposite_features[abs(column)-1])
+            rules_features.append(rule_features)
+
+        self.__rules_features = rules_features
 
     def __create_rules_features_string(self, rules_features):
         rules_features_string = ''
@@ -343,11 +401,11 @@ class LQDNFMaxSAT:
         return predict
 
     def __validate_instance(self, instance):
-        qtt_binarized_feat = self.__dataset_binarized.get_qtt_binarized_feat_per_original_feat()
+        qtts_binarized_feat = self.__dataset_binarized.get_qtts_binarized_feat_per_original_feat()
 
         if type(instance) not in [list, pd.array, np.array, np.ndarray]:
             raise Exception('Param instance must be a list, pd.array, np.array or np.ndarray')
-        if len(instance) != len(qtt_binarized_feat):
+        if len(instance) != len(qtts_binarized_feat):
             raise Exception('Param instance with number of features invalid')
         
         return True
@@ -356,9 +414,9 @@ class LQDNFMaxSAT:
         normal_instance_binarized = []
 
         original_to_binarized = self.__dataset_binarized.get_original_to_binarized_values()[:-1]
-        qtt_binarized_feat = self.__dataset_binarized.get_qtt_binarized_feat_per_original_feat()
+        qtts_binarized_feat = self.__dataset_binarized.get_qtts_binarized_feat_per_original_feat()
 
-        for i_num_feat, num_feat in enumerate(qtt_binarized_feat):
+        for i_num_feat, num_feat in enumerate(qtts_binarized_feat):
             if num_feat == 0:
                 continue
             elif num_feat == 1:
