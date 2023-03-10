@@ -420,12 +420,18 @@ class LQDNFMaxSAT:
             if num_feat == 0:
                 continue
             elif num_feat == 1:
-                normal_instance_binarized.append(original_to_binarized[i_num_feat][instance[i_num_feat]])
+                if instance[i_num_feat] in original_to_binarized[i_num_feat].keys():
+                    normal_instance_binarized.append(original_to_binarized[i_num_feat][instance[i_num_feat]])
+                else:
+                    normal_instance_binarized.append(0)
             elif i_num_feat in self.__categorical_columns_index:
-                # TODO: adding key "Other" in the values map (Binarize) and add here
-                # the case that the map do not have the value binarized
-                for num in original_to_binarized[i_num_feat][instance[i_num_feat]]:
-                    normal_instance_binarized.append(num)
+                if instance[i_num_feat] in original_to_binarized[i_num_feat].keys():
+                    for num in original_to_binarized[i_num_feat][instance[i_num_feat]]:
+                        normal_instance_binarized.append(num)
+                else:
+                    last_key = list(original_to_binarized[i_num_feat].keys())[-1]
+                    for num in original_to_binarized[i_num_feat][last_key]:
+                        normal_instance_binarized.append(0)
             elif type(instance[i_num_feat]) in [
                     int, np.int16, np.int32, np.int64, float, 
                     np.float16, np.float32, np.float64
@@ -477,7 +483,7 @@ class LQDNFMaxSAT:
         for i_line in range(X_test.index.size):
             predict = self.predict(X_test.iloc[i_line].values)
 
-            if predict == y_test[i_line]:
+            if predict == y_test.values[i_line]:
                 hits_count += 1
 
         return hits_count/y_test.size
