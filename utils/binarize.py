@@ -165,7 +165,7 @@ class Binarize:
         unique_values_indexes = findIndexUniqueValues(series, series_unique_values)
         values_map = {}
         for index in unique_values_indexes:
-            values_map[self.__binarized_classes[index]] = series[index]
+            values_map[self.__binarized_classes.values[index]] = series.values[index]
         self.__original_to_binarized_values.append(values_map)
         # -----------------------------------------------------------------------
 
@@ -181,7 +181,7 @@ class Binarize:
         unique_values_indexes = findIndexUniqueValues(column, unique_values)
         values_map = {}
         for index in unique_values_indexes:
-            values_map[column[index]] = binarized_columns.iloc[index].values[0]
+            values_map[column.values[index]] = binarized_columns.iloc[index].values[0]
         self.__original_to_binarized_values.append(values_map)
         # -----------------------------------------------------------------------
 
@@ -211,7 +211,7 @@ class Binarize:
         unique_values_indexes = findIndexUniqueValues(column, unique_values)
         values_map = {}
         for index in unique_values_indexes:
-            values_map[column[index]] = binarized_columns.iloc[index].values
+            values_map[column.values[index]] = binarized_columns.iloc[index].values
         self.__original_to_binarized_values.append(values_map)
         # -----------------------------------------------------------------------
 
@@ -252,7 +252,8 @@ class Binarize:
                 [0 for _ in range(len(new_feats))] 
                 for _ in range(len(column))
             ], 
-            columns=new_feats
+            columns=new_feats,
+            index=column.index
         )
         for col in binarized_columns:
             indexs_one = column.index[
@@ -353,7 +354,7 @@ class Binarize:
     def get_opposite_features_label(self):
         return self.__opposite_features_labels
     
-    def get_qtt_binarized_feat_per_original_feat(self):
+    def get_qtts_binarized_feat_per_original_feat(self):
         return self.__qtts_columns_per_feature_label
 
     def get_normal_instances(self, partition = 0):
