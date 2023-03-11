@@ -324,17 +324,13 @@ class LQDNFMaxSAT:
         for rule in self.__rules_columns:
             for column in rule:
                 if -column in rule:
-                    rule.remove(column)
-                    rule.remove(-column)
+                    self.__rules_columns.remove(rule)
+                    break
 
         # removing redundances in the same rule: (A <= 2 ∧ A <= 3) and (A > 2 ∧ A > 3)
         ordinal_normal_index_columns = np.where([
             feat.__contains__('<=') 
             for feat in normal_features
-        ])[0]
-        ordinal_opposite_index_columns = np.where([
-            feat.__contains__('>') 
-            for feat in opposite_features
         ])[0]
         for i in range(0, len(ordinal_normal_index_columns), self.__number_quantiles_ordinal_columns-1):
             for rule in self.__rules_columns:
@@ -344,16 +340,18 @@ class LQDNFMaxSAT:
                     if column > 0:
                         if column - 1 in ordinal_normal_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
                             ordinal_normal_columns.append(column)
-                            rule.remove(column)
                     else:
-                        if abs(column) - 1 in ordinal_opposite_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
+                        if abs(column) - 1 in ordinal_normal_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
                             ordinal_opposite_columns.append(column)
-                            rule.remove(column)
 
                 if len(ordinal_normal_columns) > 0:
-                    rule.append(max(ordinal_normal_columns))
+                    for column in ordinal_normal_columns:
+                        rule.remove(column)
+                    rule.append(min(ordinal_normal_columns))
                 if len(ordinal_opposite_columns) > 0:
-                    rule.append(max(ordinal_opposite_columns))
+                    for column in ordinal_opposite_columns:
+                        rule.remove(column)
+                    rule.append(min(ordinal_opposite_columns))
 
         # update self.__rules_features
         rules_features = []
