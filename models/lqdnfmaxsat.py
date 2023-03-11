@@ -321,11 +321,14 @@ class LQDNFMaxSAT:
             self.__rules_columns[i_rule] = list(set(rule))
 
         # removing normal and opposite literals in the same rule: (... A ∧ ¬A ...)
+        rules_falsy = []
         for rule in self.__rules_columns:
             for column in rule:
                 if -column in rule:
-                    self.__rules_columns.remove(rule)
+                    rules_falsy.append(rule)
                     break
+        for rule in rules_falsy:
+            self.__rules_columns.remove(rule)
 
         # removing redundances in the same rule: (A <= 2 ∧ A <= 3) and (A > 2 ∧ A > 3)
         ordinal_normal_index_columns = np.where([
