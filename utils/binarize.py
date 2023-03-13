@@ -325,13 +325,21 @@ class Binarize:
         X_aux, y_aux = data_frame_binarized.values, series_binarized.values
         
         if self.__number_partitions == 1:
-            X1, X2, y1, y2 = train_test_split(X_aux, y_aux, train_size=0.5)
+            X1, X2, y1, y2 = train_test_split(
+                X_aux, 
+                y_aux, 
+                train_size=0.5, 
+                stratify=y_aux
+            )
             normal_instances_balanced.append(np.concatenate((X1, X2)))
             classes_balanced.append(np.concatenate((y1, y2)))
         else:
             for partition in self.__binarized_normal_instances[:-1]:
                 X1, X2, y1, y2 = train_test_split(
-                    X_aux, y_aux, train_size=len(partition)
+                    X_aux, 
+                    y_aux, 
+                    train_size=len(partition),
+                    stratify=y_aux
                 )
                 normal_instances_balanced.append(X1)
                 classes_balanced.append(y1)
