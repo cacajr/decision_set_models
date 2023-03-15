@@ -9,8 +9,8 @@ from pysat.examples.rc2 import RC2
 class LQDNFMaxSAT:
     ''' Description of Params
 
-        number_rules: must be a integer and represents the number of rules/clauses
-        that the model will to generate
+        max_rule_set_size: must be a integer and represents the maximum number of 
+        rules/clauses that the model will to generate
 
         max_size_each_rule: must be a integer and represents the maximum number of
         literals per rule/clause
@@ -27,42 +27,44 @@ class LQDNFMaxSAT:
         number_quantiles_ordinal_columns: must be an integer that represents the 
         number of quantiles/columns that the new representation will have
 
-        number_partitions: must be an integer that represents the number of 
-        partitions
+        number_lines_per_partition: must be an integer that represents the number of 
+        lines for each partitions. Depending on the number of instances in the training 
+        dataset, this number can be modified to maintain balance between the number of 
+        instances in the partitions
 
         balance_instances: must be a boolean that represents whether each 
         partition of the dataset should have balanced classes
 
     '''
     def __init__(self,
-            number_rules = 1,
-            max_size_each_rule = 5,
+            max_rule_set_size = 2,
+            max_size_each_rule = 3,
             rules_accuracy_weight = 10,
             time_out_each_partition = 1024,
             categorical_columns_index=[],
             number_quantiles_ordinal_columns=5,
-            number_partitions = 1,
+            number_lines_per_partition = 8,
             balance_instances = True
         ):
 
         self.__validate_init_params(
-            number_rules,
+            max_rule_set_size,
             max_size_each_rule,
             rules_accuracy_weight,
             time_out_each_partition,
             categorical_columns_index,
             number_quantiles_ordinal_columns,
-            number_partitions,
+            number_lines_per_partition,
             balance_instances
         )
 
-        self.__number_rules = number_rules
+        self.__max_rule_set_size = max_rule_set_size
         self.__max_size_each_rule = max_size_each_rule
         self.__rules_accuracy_weight = rules_accuracy_weight
         self.__time_out_each_partition = time_out_each_partition
         self.__categorical_columns_index = categorical_columns_index
         self.__number_quantiles_ordinal_columns = number_quantiles_ordinal_columns
-        self.__number_partitions = number_partitions
+        self.__number_lines_per_partition = number_lines_per_partition
         self.__balance_instances = balance_instances
 
         self.__dataset_binarized = Binarize
@@ -76,18 +78,18 @@ class LQDNFMaxSAT:
         self.__rules_features_string = str('')
 
     def __validate_init_params(self,
-            number_rules,
+            max_rule_set_size,
             max_size_each_rule,
             rules_accuracy_weight,
             time_out_each_partition,
             categorical_columns_index,
             number_quantiles_ordinal_columns,
-            number_partitions,
+            number_lines_per_partition,
             balance_instances
         ):
 
-        if type(number_rules) is not int:
-            raise Exception('Param number_rules must be an int')
+        if type(max_rule_set_size) is not int:
+            raise Exception('Param max_rule_set_size must be an int')
         if type(max_size_each_rule) is not int:
             raise Exception('Param max_size_each_rule must be an int')
         if type(rules_accuracy_weight) is not int:
@@ -100,23 +102,24 @@ class LQDNFMaxSAT:
             raise Exception('Param number_quantiles_ordinal_columns must be an int')
         if number_quantiles_ordinal_columns <= 2:
             raise Exception('Param number_quantiles_ordinal_columns must be greater than 2')
-        if type(number_partitions) is not int:
-            raise Exception('Param number_partitions must be an int')
+        if type(number_lines_per_partition) is not int:
+            raise Exception('Param number_lines_per_partition must be an int')
         if type(balance_instances) is not bool:
             raise Exception('Param balance_instances must be a bool')
 
     def fit(self, X, y):
+        number_partitions = int(np.ceil(X.index.size/self.__number_lines_per_partition))
+
         self.__dataset_binarized = Binarize(
             data_frame=X,
             series=y,
             categorical_columns_index=self.__categorical_columns_index,
             number_quantiles_ordinal_columns=self.__number_quantiles_ordinal_columns,
-            number_partitions=self.__number_partitions,
+            number_partitions=number_partitions,
             balance_instances=self.__balance_instances
         )
 
         X_normal_partitions = self.__dataset_binarized.get_normal_instances()
-        X_opposite_partitions = self.__dataset_binarized.get_opposite_instances()
         y_partitions = self.__dataset_binarized.get_classes()
 
         for index_partition, (X_normal_partition, y_partition) in enumerate(
@@ -135,7 +138,7 @@ class LQDNFMaxSAT:
             # TODO: add a new MaxSAT solver option
 
             # WARNING: this line is used just to debug --------------------------------
-            wcnf_formula.to_file('./models/wcnf_formula.wcnf')
+            # wcnf_formula.to_file('./models/wcnf_formula.wcnf')
             # -------------------------------------------------------------------------
 
             solver = RC2(wcnf_formula)
@@ -145,7 +148,7 @@ class LQDNFMaxSAT:
             if self.__solver_solution == None:
                 raise Exception(f'Partition {index_partition + 1} unsatisfiable')
 
-            if index_partition == self.__number_partitions - 1:
+            if index_partition == number_partitions - 1:
                 self.__create_rules(X_normal_partition)
                 self.__prune_rules()
                 self.__rules_features_string = self.__create_rules_features_string(
@@ -159,7 +162,7 @@ class LQDNFMaxSAT:
         wcnf_formula = WCNF()
 
         # (7.5)
-        for i in range(self.__number_rules):    # i ∈ {1, ..., m}
+        for i in range(self.__max_rule_set_size):    # i ∈ {1, ..., m}
             for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
                 clause = []
                 for t in range(len(features)):  # t ∈ Φ ...
@@ -170,7 +173,7 @@ class LQDNFMaxSAT:
         
         # (7.5.1)
         if len(previous_solution) == 0:
-            for i in range(self.__number_rules):
+            for i in range(self.__max_rule_set_size):
                 for j in range(self.__max_size_each_rule):
                     for t in range(len(features)):
                         wcnf_formula.append([-self.__x(i,j,t)], weight=1)
@@ -181,7 +184,7 @@ class LQDNFMaxSAT:
                 wcnf_formula.append([literal], weight=1)
 
         # (7.6)
-        for i in range(self.__number_rules):
+        for i in range(self.__max_rule_set_size):
             for j in range(self.__max_size_each_rule):
                 for t in range(len(features)):
                     for tl in range(t+1, len(features)):
@@ -189,7 +192,7 @@ class LQDNFMaxSAT:
                     wcnf_formula.append([-self.__x(i,j,t), -self.__x(i,j)])
         
         # (7.7)
-        for i in range(self.__number_rules):
+        for i in range(self.__max_rule_set_size):
             clause = []
             for j in range(self.__max_size_each_rule):
                 clause.append(-self.__x(i,j))
@@ -197,7 +200,7 @@ class LQDNFMaxSAT:
             wcnf_formula.append(clause)
 
         # (7.8)
-        for i in range(self.__number_rules):
+        for i in range(self.__max_rule_set_size):
             for j in range(self.__max_size_each_rule):
                 for t in range(len(features)):
                     for w, instance in enumerate(X_norm):    # w ∈ P U N
@@ -215,13 +218,13 @@ class LQDNFMaxSAT:
                         )
 
         # (7.9)
-        for i in range(self.__number_rules):
+        for i in range(self.__max_rule_set_size):
             for j in range(self.__max_size_each_rule):
                 for w in range(len(X_norm)):
                     wcnf_formula.append([-self.__x(i,j), self.__y(i,j,w)])
 
         # (7.10)
-        for i in range(self.__number_rules):
+        for i in range(self.__max_rule_set_size):
             for w in range(len(X_norm)):
                 clauses = []
                 weights = []
@@ -238,14 +241,14 @@ class LQDNFMaxSAT:
         # (7.11)
         for u in np.where(y == 1)[0]:    # u ∈ P
             clause = []
-            for i in range(self.__number_rules):
+            for i in range(self.__max_rule_set_size):
                 clause.append(self.__z(i,u))
             
             wcnf_formula.append(clause, weight= self.__rules_accuracy_weight)
 
         # (7.12)
         for v in np.where(y == 0)[0]:    # v ∈ N
-            for i in range(self.__number_rules):
+            for i in range(self.__max_rule_set_size):
                 wcnf_formula.append(
                     [-self.__z(i,v)], 
                     weight= self.__rules_accuracy_weight
@@ -278,10 +281,10 @@ class LQDNFMaxSAT:
         x_literals = self.__get_x_literals(normal_features)
         p_literals = self.__get_p_literals(normal_features, X_norm)
 
-        rules_features = [[] for _ in range(self.__number_rules)]
-        rules_columns = [[] for _ in range(self.__number_rules)]
+        rules_features = [[] for _ in range(self.__max_rule_set_size)]
+        rules_columns = [[] for _ in range(self.__max_rule_set_size)]
         
-        for i in range(self.__number_rules):    # i ∈ {1, ..., m}
+        for i in range(self.__max_rule_set_size):    # i ∈ {1, ..., m}
             for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
                 for t in range(len(normal_features)):  # t ∈ Φ U {*}
                     if self.__x(i,j,t) in x_literals:
@@ -298,15 +301,15 @@ class LQDNFMaxSAT:
     def __get_x_literals(self, features):
         number_features = len(features)
         start = 0
-        end = (number_features + 1) * self.__number_rules * self.__max_size_each_rule
+        end = (number_features + 1) * self.__max_rule_set_size * self.__max_size_each_rule
         
         return self.__solver_solution[start:end]
 
     def __get_p_literals(self, features, X_norm):
         number_features = len(features)
         number_instances = len(X_norm)
-        start = (number_features + 1) * self.__number_rules * self.__max_size_each_rule
-        end = start + ((number_instances + 1) * self.__number_rules * self.__max_size_each_rule)
+        start = (number_features + 1) * self.__max_rule_set_size * self.__max_size_each_rule
+        end = start + ((number_instances + 1) * self.__max_rule_set_size * self.__max_size_each_rule)
 
         p_literals_region = self.__solver_solution[start:end]
 
@@ -489,8 +492,20 @@ class LQDNFMaxSAT:
 
         return hits_count/y_test.size
 
+    # Utility functions -------------------------------------------------------------------
+
     def get_dataset_binarized(self):
         return self.__dataset_binarized
 
     def get_total_time_solver_solutions(self):
         return self.__total_time_solver_solutions
+
+    def get_rule_set_size(self):
+        return len(self.__rules_columns)
+
+    def get_larger_rule_size(self):
+        rule_sizes = []
+        for rule in self.__rules_columns:
+            rule_sizes.append(len(rule))
+
+        return max(rule_sizes)
