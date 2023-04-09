@@ -432,7 +432,7 @@ class IMLI:
     def get_total_time_solver_solutions(self):
         return self.__total_time_solver_solutions
 
-    def get_max_rule_set_size(self):
+    def get_rule_set_size(self):
         return len(self.__rules_columns)
 
     def get_larger_rule_size(self):
