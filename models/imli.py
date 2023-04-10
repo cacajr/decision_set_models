@@ -129,7 +129,7 @@ class IMLI:
             # TODO: add a new MaxSAT solver option
 
             # WARNING: this line is used just to debug --------------------------------
-            wcnf_formula.to_file('./wcnf_formula.wcnf')
+            wcnf_formula.to_file('./imli_wcnf_formula.wcnf')
             # -------------------------------------------------------------------------
 
             solver = RC2(wcnf_formula)
@@ -140,7 +140,7 @@ class IMLI:
                 raise Exception(f'Partition {index_partition + 1} unsatisfiable')
 
             if index_partition == number_partitions - 1:
-                self.__create_DNF_rules(X_normal_partition)
+                self.__create_DNF_rules()
                 self.__prune_rules()
                 self.__rules_features_string = self.__create_rules_features_string(
                     self.__rules_features
@@ -152,20 +152,24 @@ class IMLI:
         normal_features = self.__dataset_binarized.get_normal_features_label()
         wcnf_formula = WCNF()
 
-        # (7)
-        for i in range(len(X_norm)):    # i ∈ {1, ..., n}
-            wcnf_formula.append([-self.__n(i)], weight=self.__rules_accuracy_weight)
-        
         if len(previous_solution) == 0:
             # (8)
             for l in range(self.__max_rule_set_size):   # l ∈ {1, ..., k}
                 for j in range(2 * len(normal_features)):  # j ∈ {1, ..., m}
                     wcnf_formula.append([-self.__b(l,j)], weight=1)
         else:
+            # creating b literals in idpool
+            for l in range(self.__max_rule_set_size):   # l ∈ {1, ..., k}
+                for j in range(2 * len(normal_features)):  # j ∈ {1, ..., m}
+                    self.__b(l,j)
             # (11)
-            b_literals = self.__get_b_literals(X_norm)
+            b_literals = self.__get_b_literals(normal_features)
             for literal in b_literals:
                 wcnf_formula.append([literal], weight=1)
+        
+        # (7)
+        for i in range(len(X_norm)):    # i ∈ {1, ..., n}
+            wcnf_formula.append([-self.__n(i)], weight=self.__rules_accuracy_weight)
 
         # (9)
         next_li0 = 0    # next index z literal
@@ -216,11 +220,13 @@ class IMLI:
     def __reset_literals(self):
         self.__literals = IDPool()
 
-    def __create_DNF_rules(self, X_norm):
+    def __create_DNF_rules(self):
         normal_features = self.__dataset_binarized.get_normal_features_label()
         opposite_features = self.__dataset_binarized.get_opposite_features_label()
 
-        b_literals = self.__get_b_literals(X_norm)
+        b_literals = self.__get_b_literals(normal_features)
+
+        print(b_literals)
 
         rules_features = [[] for _ in range(self.__max_rule_set_size)]
         rules_columns = [[] for _ in range(self.__max_rule_set_size)]
@@ -228,7 +234,7 @@ class IMLI:
         for l in range(self.__max_rule_set_size):
             for j in range(2 * len(normal_features)):
                 if self.__b(l,j) in b_literals:
-                    if j < len(normal_features):
+                    if j < len(normal_features):    # if is normal feature, put opposite feature
                         rules_features[l].append(opposite_features[j])
                         rules_columns[l].append(-(j+1))
                     else:
@@ -238,12 +244,13 @@ class IMLI:
         self.__rules_features = rules_features
         self.__rules_columns = rules_columns
 
-    def __get_b_literals(self, X_norm):
-        number_features = len(X_norm[0])
-        number_instances = len(X_norm)
+        print(self.__rules_features)
+        print(self.__rules_columns)
 
-        start = number_instances
-        end = start + (2 * number_features * self.__max_rule_set_size)
+    def __get_b_literals(self, features):
+        number_features = len(features)
+        start = 0
+        end = 2 * number_features * self.__max_rule_set_size
         
         return self.__solver_solution[start:end]
 
