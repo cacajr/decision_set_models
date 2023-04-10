@@ -226,8 +226,6 @@ class IMLI:
 
         b_literals = self.__get_b_literals(normal_features)
 
-        print(b_literals)
-
         rules_features = [[] for _ in range(self.__max_rule_set_size)]
         rules_columns = [[] for _ in range(self.__max_rule_set_size)]
         
@@ -243,9 +241,6 @@ class IMLI:
 
         self.__rules_features = rules_features
         self.__rules_columns = rules_columns
-
-        print(self.__rules_features)
-        print(self.__rules_columns)
 
     def __get_b_literals(self, features):
         number_features = len(features)
