@@ -40,8 +40,8 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
 
                 imli_model = IMLI(
-                    max_rule_set_sizes = mrss,
-                    rules_accuracy_weights = raw,
+                    max_rule_set_size = mrss,
+                    rules_accuracy_weight = raw,
                     categorical_columns_index = categorical_columns_index,
                     number_quantiles_ordinal_columns = 5,
                     number_lines_per_partition = lpp,
@@ -58,13 +58,13 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                     imli_model.get_total_time_solver_solutions()    # TODO: see the time unit
                 ]], columns=columns)
 
-                pd.concat([imli_results_df, imli_result])
+                imli_results_df = pd.concat([imli_results_df, imli_result])
             
                 for mser in tqdm(max_sizes_each_rule, desc='Maximum size each rule    '):
                     lqdnfmaxsat_model = LQDNFMaxSAT(
-                        max_rule_set_sizes = mrss,
-                        max_sizes_each_rule = mser,
-                        rules_accuracy_weights = raw,
+                        max_rule_set_size = mrss,
+                        max_size_each_rule = mser,
+                        rules_accuracy_weight = raw,
                         categorical_columns_index = categorical_columns_index,
                         number_quantiles_ordinal_columns = 5,
                         number_lines_per_partition = lpp,
@@ -81,7 +81,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                         lqdnfmaxsat_model.get_total_time_solver_solutions()    # TODO: see the time unit
                     ]], columns=columns)
 
-                    pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_result])
+                    lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_result])
 
             imli_averages = pd.DataFrame([[
                 'Averages',
@@ -91,7 +91,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                 imli_results_df['Training time'].iloc[-1: -number_realizations+1: -1].mean()
             ]], columns=columns)
 
-            pd.concat([imli_results_df, imli_averages])
+            imli_results_df = pd.concat([imli_results_df, imli_averages])
 
             lqdnfmaxsat_averages = pd.DataFrame([[
                 'Averages',
@@ -101,7 +101,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                 lqdnfmaxsat_results_df['Training time'].iloc[-1: -number_realizations*len(max_sizes_each_rule)+1: -1].mean()
             ]], columns=columns)
 
-            pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_averages])
+            lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_averages])
 
 # save results in csv file
 imli_results_df.to_csv(imli_results_path, index=False)
