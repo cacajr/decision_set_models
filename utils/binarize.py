@@ -25,8 +25,8 @@ class Binarize:
         balance_instances: must be a boolean that represents whether each 
         partition of the dataset should have balanced classes
 
-        balance_instances_seed: must be a integer that represents the number of
-        random seeds
+        balance_instances_seed: must be a integer that represents the random seed
+        number for balancing
 
     '''
     def __init__(self, 
