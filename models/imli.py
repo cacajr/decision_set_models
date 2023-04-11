@@ -4,6 +4,7 @@ from pysat.formula import IDPool
 from pysat.formula import WCNF
 import numpy as np
 from pysat.examples.rc2 import RC2
+import time
 
 
 class IMLI:
@@ -143,8 +144,12 @@ class IMLI:
             # -------------------------------------------------------------------------
 
             solver = RC2(wcnf_formula)
+
+            start = time.time()
             self.__solver_solution = solver.compute()   # TODO: add time out calculate
-            self.__total_time_solver_solutions += solver.oracle_time()
+            end = time.time()
+
+            self.__total_time_solver_solutions += end - start
 
             if self.__solver_solution == None:
                 raise Exception(f'Partition {index_partition + 1} unsatisfiable')
