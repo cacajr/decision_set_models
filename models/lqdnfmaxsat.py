@@ -514,8 +514,16 @@ class LQDNFMaxSAT:
         return len(self.__rules_columns)
 
     def get_larger_rule_size(self):
-        rule_sizes = []
+        larger_rule_size = 0
         for rule in self.__rules_columns:
-            rule_sizes.append(len(rule))
+            if larger_rule_size < len(rule):
+                larger_rule_size = len(rule)
 
-        return max(rule_sizes)
+        return larger_rule_size
+    
+    def get_sum_rules_size(self):
+        sum_rules_sizes = 0
+        for rule in self.__rules_columns:
+            sum_rules_sizes += len(rule)
+
+        return sum_rules_sizes
