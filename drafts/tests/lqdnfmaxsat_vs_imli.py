@@ -18,6 +18,9 @@ number_lines_per_partition = [8, 16]
 max_rule_set_sizes = [1, 2, 3]
 max_sizes_each_rule = [1, 2, 3]
 rules_accuracy_weights = [5, 10]
+number_quantiles_ordinal_columns = 5
+balance_instances = True
+balance_instances_seed = 21
 number_realizations = 10
 database_path = f'./databases/{database_name}.csv'
 imli_results_path = f'./drafts/tests/lqdnfmaxsat_vs_imli_results/{database_name}_imli.csv'
@@ -43,9 +46,10 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                     max_rule_set_size = mrss,
                     rules_accuracy_weight = raw,
                     categorical_columns_index = categorical_columns_index,
-                    number_quantiles_ordinal_columns = 5,
+                    number_quantiles_ordinal_columns = number_quantiles_ordinal_columns,
                     number_lines_per_partition = lpp,
-                    balance_instances = True    # TODO: see the balance method (seed)
+                    balance_instances = balance_instances,
+                    balance_instances_seed = balance_instances_seed
                 )
 
                 imli_model.fit(X_train, y_train)
@@ -55,7 +59,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                     imli_model.get_rule_set_size(),
                     imli_model.get_larger_rule_size(),
                     imli_model.score(X_test, y_test),
-                    imli_model.get_total_time_solver_solutions()    # TODO: see the time unit
+                    imli_model.get_total_time_solver_solutions()
                 ]], columns=columns)
 
                 imli_results_df = pd.concat([imli_results_df, imli_result])
@@ -66,19 +70,20 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                         max_size_each_rule = mser,
                         rules_accuracy_weight = raw,
                         categorical_columns_index = categorical_columns_index,
-                        number_quantiles_ordinal_columns = 5,
+                        number_quantiles_ordinal_columns = number_quantiles_ordinal_columns,
                         number_lines_per_partition = lpp,
-                        balance_instances = True    # TODO: see the balance method (seed)
+                        balance_instances = balance_instances,
+                        balance_instances_seed = balance_instances_seed
                     )
 
                     lqdnfmaxsat_model.fit(X_train, y_train)
 
                     lqdnfmaxsat_result = pd.DataFrame([[
-                        f'lpp: {lpp} | mrss: {mrss} | raw: {raw}',
+                        f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: {mser}',
                         lqdnfmaxsat_model.get_rule_set_size(),
                         lqdnfmaxsat_model.get_larger_rule_size(),
                         lqdnfmaxsat_model.score(X_test, y_test),
-                        lqdnfmaxsat_model.get_total_time_solver_solutions()    # TODO: see the time unit
+                        lqdnfmaxsat_model.get_total_time_solver_solutions()
                     ]], columns=columns)
 
                     lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_result])
