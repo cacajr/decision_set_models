@@ -25,6 +25,9 @@ class Binarize:
         balance_instances: must be a boolean that represents whether each 
         partition of the dataset should have balanced classes
 
+        balance_instances_seed: must be a integer that represents the number of
+        random seeds
+
     '''
     def __init__(self, 
             data_frame = pd.DataFrame([]),
@@ -32,7 +35,8 @@ class Binarize:
             categorical_columns_index = [],
             number_quantiles_ordinal_columns = 5,
             number_partitions = 1,
-            balance_instances = True
+            balance_instances = True,
+            balance_instances_seed = None
         ):
 
         self.__validate_init_params(
@@ -41,7 +45,8 @@ class Binarize:
             categorical_columns_index,
             number_quantiles_ordinal_columns,
             number_partitions,
-            balance_instances
+            balance_instances,
+            balance_instances_seed
         )
 
         self.__normal_features_labels = pd.array([])
@@ -65,7 +70,7 @@ class Binarize:
             number_quantiles_ordinal_columns
         )
 
-        self.__separate_partitions(balance_instances)
+        self.__separate_partitions(balance_instances, balance_instances_seed)
 
     def __validate_init_params(self,
             data_frame,
@@ -73,7 +78,8 @@ class Binarize:
             categorical_columns_index,
             number_quantiles_ordinal_columns,
             number_partitions,
-            balance_instances
+            balance_instances,
+            balance_instances_seed
         ):
 
         if type(data_frame) != pd.DataFrame:
@@ -88,6 +94,8 @@ class Binarize:
             raise Exception('Param number_partitions must be an int')
         if type(balance_instances) is not bool:
             raise Exception('Param balance_instances must be a bool')
+        if balance_instances_seed != None and type(balance_instances_seed) is not int:
+            raise Exception('Param balance_instances_seed must be an int or None')
         
         if series.size != data_frame.index.size:
             raise Exception('Param series must be the same size as the data_frame.index')
@@ -296,7 +304,7 @@ class Binarize:
 
         return new_feats
 
-    def __separate_partitions(self, balance_instances):
+    def __separate_partitions(self, balance_instances, balance_instances_seed):
         data_frame_binarized = self.__binarized_normal_instances
         series_binarized = self.__binarized_classes
 
@@ -316,9 +324,18 @@ class Binarize:
         )
 
         if balance_instances:
-            self.__balance_instances(data_frame_binarized, series_binarized)
+            self.__balance_instances(
+                data_frame_binarized, 
+                series_binarized,
+                balance_instances_seed
+            )
 
-    def __balance_instances(self, data_frame_binarized, series_binarized):
+    def __balance_instances(self, 
+            data_frame_binarized, 
+            series_binarized, 
+            balance_instances_seed
+        ):
+
         normal_instances_balanced = []
         classes_balanced = []
 
@@ -339,7 +356,8 @@ class Binarize:
                     X_aux, 
                     y_aux, 
                     train_size=len(partition),
-                    stratify=y_aux
+                    stratify=y_aux,
+                    random_state=balance_instances_seed
                 )
                 normal_instances_balanced.append(X1)
                 classes_balanced.append(y1)
