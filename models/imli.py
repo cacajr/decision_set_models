@@ -32,6 +32,9 @@ class IMLI:
         balance_instances: must be a boolean that represents whether each 
         partition of the dataset should have balanced classes
 
+        balance_instances_seed: must be a integer that represents the random seed
+        number for balancing
+
     '''
     def __init__(self,
             max_rule_set_size = 2,
@@ -40,7 +43,8 @@ class IMLI:
             categorical_columns_index=[],
             number_quantiles_ordinal_columns=5,
             number_lines_per_partition = 8,
-            balance_instances = True
+            balance_instances = True,
+            balance_instances_seed = None
         ):
 
         self.__validate_init_params(
@@ -50,7 +54,8 @@ class IMLI:
             categorical_columns_index,
             number_quantiles_ordinal_columns,
             number_lines_per_partition,
-            balance_instances
+            balance_instances,
+            balance_instances_seed
         )
 
         self.__max_rule_set_size = max_rule_set_size
@@ -60,6 +65,7 @@ class IMLI:
         self.__number_quantiles_ordinal_columns = number_quantiles_ordinal_columns
         self.__number_lines_per_partition = number_lines_per_partition
         self.__balance_instances = balance_instances
+        self.__balance_instances_seed = balance_instances_seed
 
         self.__dataset_binarized = Binarize
 
@@ -78,7 +84,8 @@ class IMLI:
             categorical_columns_index,
             number_quantiles_ordinal_columns,
             number_lines_per_partition,
-            balance_instances
+            balance_instances,
+            balance_instances_seed
         ):
 
         if type(max_rule_set_size) is not int:
@@ -97,6 +104,8 @@ class IMLI:
             raise Exception('Param number_lines_per_partition must be an int')
         if type(balance_instances) is not bool:
             raise Exception('Param balance_instances must be a bool')
+        if balance_instances_seed != None and type(balance_instances_seed) is not int:
+            raise Exception('Param balance_instances_seed must be an int or None')
 
     def fit(self, X, y):
         number_partitions = int(np.ceil(X.index.size/self.__number_lines_per_partition))
@@ -107,7 +116,8 @@ class IMLI:
             categorical_columns_index=self.__categorical_columns_index,
             number_quantiles_ordinal_columns=self.__number_quantiles_ordinal_columns,
             number_partitions=number_partitions,
-            balance_instances=self.__balance_instances
+            balance_instances=self.__balance_instances,
+            balance_instances_seed=self.__balance_instances_seed
         )
 
         X_normal_partitions = self.__dataset_binarized.get_normal_instances()
