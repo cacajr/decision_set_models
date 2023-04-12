@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 
 # training configurations
-database_name = 'parkinsons'
-categorical_columns_index = []
+database_name = 'depressed'
+categorical_columns_index = [6]
 number_lines_per_partition = [8, 16]
 max_rule_set_sizes = [1, 2, 3]
 max_sizes_each_rule = [1, 2, 3]
