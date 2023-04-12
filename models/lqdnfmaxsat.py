@@ -515,6 +515,13 @@ class LQDNFMaxSAT:
     def get_total_time_solver_solutions(self):
         return self.__total_time_solver_solutions
 
+    def get_rules_size(self):
+        rules_size = []
+        for rule in self.__rules_columns:
+            rules_size.append(len(rule))
+
+        return rules_size
+
     def get_rule_set_size(self):
         return len(self.__rules_columns)
 
@@ -527,8 +534,8 @@ class LQDNFMaxSAT:
         return larger_rule_size
     
     def get_sum_rules_size(self):
-        sum_rules_sizes = 0
+        sum_rules_size = 0
         for rule in self.__rules_columns:
-            sum_rules_sizes += len(rule)
+            sum_rules_size += len(rule)
 
-        return sum_rules_sizes
+        return sum_rules_size
