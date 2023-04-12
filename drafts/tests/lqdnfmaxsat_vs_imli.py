@@ -32,7 +32,7 @@ X = Xy.drop(['Class'], axis=1)
 y = Xy['Class']
 
 # dataframes that will save the imli and lqdnfmaxsat results, respectively
-columns = ['Configuration', 'Rule set size', 'Larger rule size', 'Accuracy', 'Training time']
+columns = ['Configuration', 'Rule set size', 'Sum rules size', 'Larger rule size', 'Accuracy', 'Training time']
 imli_results_df = pd.DataFrame([], columns=columns)
 lqdnfmaxsat_results_df = pd.DataFrame([], columns=columns)
 
@@ -57,6 +57,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                 imli_result = pd.DataFrame([[
                     f'lpp: {lpp} | mrss: {mrss} | raw: {raw}',
                     imli_model.get_rule_set_size(),
+                    imli_model.get_sum_rules_size(),
                     imli_model.get_larger_rule_size(),
                     imli_model.score(X_test, y_test),
                     imli_model.get_total_time_solver_solutions()
@@ -81,6 +82,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
                     lqdnfmaxsat_result = pd.DataFrame([[
                         f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: {mser}',
                         lqdnfmaxsat_model.get_rule_set_size(),
+                        lqdnfmaxsat_model.get_sum_rules_size(),
                         lqdnfmaxsat_model.get_larger_rule_size(),
                         lqdnfmaxsat_model.score(X_test, y_test),
                         lqdnfmaxsat_model.get_total_time_solver_solutions()
@@ -91,6 +93,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
             imli_averages = pd.DataFrame([[
                 'Averages',
                 imli_results_df['Rule set size'].iloc[-1: -number_realizations+1: -1].mean(),
+                imli_results_df['Sum rules size'].iloc[-1: -number_realizations+1: -1].mean(),
                 imli_results_df['Larger rule size'].iloc[-1: -number_realizations+1: -1].mean(),
                 imli_results_df['Accuracy'].iloc[-1: -number_realizations+1: -1].mean(),
                 imli_results_df['Training time'].iloc[-1: -number_realizations+1: -1].mean()
@@ -101,6 +104,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition'):
             lqdnfmaxsat_averages = pd.DataFrame([[
                 'Averages',
                 lqdnfmaxsat_results_df['Rule set size'].iloc[-1: -number_realizations*len(max_sizes_each_rule)+1: -1].mean(),
+                imli_results_df['Sum rules size'].iloc[-1: -number_realizations+1: -1].mean(),
                 lqdnfmaxsat_results_df['Larger rule size'].iloc[-1: -number_realizations*len(max_sizes_each_rule)+1: -1].mean(),
                 lqdnfmaxsat_results_df['Accuracy'].iloc[-1: -number_realizations*len(max_sizes_each_rule)+1: -1].mean(),
                 lqdnfmaxsat_results_df['Training time'].iloc[-1: -number_realizations*len(max_sizes_each_rule)+1: -1].mean()
