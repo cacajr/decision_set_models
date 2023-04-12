@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 
 # training configurations
-database_name = 'depressed'
-categorical_columns_index = [6]
+database_name = 'wdbc'
+categorical_columns_index = []
 number_lines_per_partition = [8, 16]
 max_rule_set_sizes = [1, 2, 3]
 max_sizes_each_rule = [1, 2, 3]
