@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 
 # training configurations
-database_name = 'lung_cancer'
-categorical_columns_index = [0, 1]
+database_name = 'ionosphere'
+categorical_columns_index = [0]
 number_lines_per_partition = [8, 16]
 max_rule_set_sizes = [1, 2, 3]
 # max_sizes_each_rule = [1, 2, 3]
