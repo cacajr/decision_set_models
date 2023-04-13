@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 
 # training configurations
-database_name = 'mushroom'
-categorical_columns_index = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+database_name = 'iris'
+categorical_columns_index = []
 number_lines_per_partition = [8, 16]
 max_rule_set_sizes = [1, 2, 3]
 # max_sizes_each_rule = [1, 2, 3]
@@ -89,7 +89,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition '):
 
                     lqdnfmaxsat_accuracy = lqdnfmaxsat_model.score(X_test, y_test)
 
-                    if lqdnfmaxsat_best_result['Accuracy'].iloc[0] < lqdnfmaxsat_accuracy:
+                    if lqdnfmaxsat_accuracy > lqdnfmaxsat_best_result['Accuracy'].iloc[0]:
                         lqdnfmaxsat_best_result = pd.DataFrame([[
                             f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: {mser}',
                             lqdnfmaxsat_model.get_rules_size(),
@@ -104,7 +104,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition '):
 
             imli_averages = pd.DataFrame([[
                 'Averages',
-                imli_results_df['Rules size'].iloc[-1: -number_realizations+1: -1].mean(),
+                '',
                 imli_results_df['Rule set size'].iloc[-1: -number_realizations+1: -1].mean(),
                 imli_results_df['Sum rules size'].iloc[-1: -number_realizations+1: -1].mean(),
                 imli_results_df['Larger rule size'].iloc[-1: -number_realizations+1: -1].mean(),
@@ -116,7 +116,7 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition '):
 
             lqdnfmaxsat_averages = pd.DataFrame([[
                 'Averages',
-                lqdnfmaxsat_results_df['Rules size'].iloc[-1: -number_realizations+1: -1].mean(),
+                '',
                 lqdnfmaxsat_results_df['Rule set size'].iloc[-1: -number_realizations+1: -1].mean(),
                 lqdnfmaxsat_results_df['Sum rules size'].iloc[-1: -number_realizations+1: -1].mean(),
                 lqdnfmaxsat_results_df['Larger rule size'].iloc[-1: -number_realizations+1: -1].mean(),
