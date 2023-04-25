@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 
 # training configurations
-database_name = 'mushroom'
-categorical_columns_index = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+database_name = 'toms'
+categorical_columns_index = []
 number_lines_per_partition = [8, 16]
 max_rule_set_sizes = [1, 2, 3]
 # max_sizes_each_rule = [1, 2, 3]
@@ -36,10 +36,10 @@ columns = ['Configuration', 'Rules size', 'Rule set size', 'Sum rules size', 'La
 imli_results_df = pd.DataFrame([], columns=columns)
 lqdnfmaxsat_results_df = pd.DataFrame([], columns=columns)
 
-for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition '):
-    for mrss in tqdm(max_rule_set_sizes, desc='Maximum rule set size      '):
-        for raw in tqdm(rules_accuracy_weights, desc='Rule accuracy weight       '):
-            for r in tqdm(range(number_realizations), desc='Realization                '):
+for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | mser: 0 '):
+    for mrss in tqdm(max_rule_set_sizes, desc=f'lpp: {lpp} | mrss: 0 | raw: 0 | mser: 0'):
+        for raw in tqdm(rules_accuracy_weights, desc=f'lpp: {lpp} | mrss: {mrss} | raw: 0 | mser: 0'):
+            for r in tqdm(range(number_realizations), desc=f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: 0'):
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
 
                 imli_model = IMLI(
@@ -70,10 +70,10 @@ for lpp in tqdm(number_lines_per_partition, desc='Number lines per partition '):
                 # case the larger rule be 1, so iterate mser once
                 imli_larger_rule_size = 2 if imli_larger_rule_size == 1 else imli_larger_rule_size
                 lqdnfmaxsat_best_result = pd.DataFrame([[
-                    f'lpp: 0 | mrss: 0 | raw: 0 | mser: 0', [], 0, 0, 0, 0.0, 0.0
+                    f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: 0', [], 0, 0, 0, 0.0, 0.0
                 ]], columns=columns)
 
-                for mser in tqdm(range(1, imli_larger_rule_size), desc='Maximum size each rule     '):
+                for mser in tqdm(range(1, imli_larger_rule_size), desc=f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: ?'):
                     lqdnfmaxsat_model = LQDNFMaxSAT(
                         max_rule_set_size = mrss,
                         max_size_each_rule = mser,
