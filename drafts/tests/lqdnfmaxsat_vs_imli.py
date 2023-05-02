@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 
 # training configurations
-database_name = 'titanic'
-categorical_columns_index = [0, 2, 3, 5]
+database_name = 'pima'
+categorical_columns_index = []
 number_lines_per_partition = [8, 16]
 max_rule_set_sizes = [1, 2, 3]
 # max_sizes_each_rule = [1, 2, 3]
@@ -102,6 +102,7 @@ for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | m
 
                 lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_best_result])
 
+            '''  WARNING!!! THIS PART IS WRONG!!!
             imli_averages = pd.DataFrame([[
                 'Averages',
                 '',
@@ -125,6 +126,7 @@ for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | m
             ]], columns=columns)
 
             lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_averages])
+            '''
 
 # save results in csv file
 imli_results_df.to_csv(imli_results_path, index=False)
