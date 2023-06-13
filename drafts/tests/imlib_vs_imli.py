@@ -3,10 +3,9 @@ if not sys.path[0] == os.path.abspath('...'):
     sys.path.insert(0, os.path.abspath('...'))
 
 from models.imli import IMLI
-from models.lqdnfmaxsat import LQDNFMaxSAT
+from models.imlib import IMLIB
 
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
@@ -23,18 +22,18 @@ balance_instances = True
 balance_instances_seed = 21
 number_realizations = 10
 database_path = f'./databases/{database_name}.csv'
-imli_results_path = f'./drafts/tests/lqdnfmaxsat_vs_imli_results/{database_name}_imli.csv'
-lqdnfmaxsat_results_path = f'./drafts/tests/lqdnfmaxsat_vs_imli_results/{database_name}_lqdnfmaxsat.csv'
+imli_results_path = f'./drafts/tests/imlib_vs_imli_results/{database_name}_imli.csv'
+imlib_results_path = f'./drafts/tests/imlib_vs_imli_results/{database_name}_imlib.csv'
 
 # import dataset
 Xy = pd.read_csv(database_path)
 X = Xy.drop(['Class'], axis=1)
 y = Xy['Class']
 
-# dataframes that will save the imli and lqdnfmaxsat results, respectively
+# dataframes that will save the imli and imlib results, respectively
 columns = ['Configuration', 'Rules size', 'Rule set size', 'Sum rules size', 'Larger rule size', 'Accuracy', 'Training time']
 imli_results_df = pd.DataFrame([], columns=columns)
-lqdnfmaxsat_results_df = pd.DataFrame([], columns=columns)
+imlib_results_df = pd.DataFrame([], columns=columns)
 
 for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | mser: 0 '):
     for mrss in tqdm(max_rule_set_sizes, desc=f'lpp: {lpp} | mrss: 0 | raw: 0 | mser: 0'):
@@ -69,12 +68,12 @@ for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | m
             
                 # case the larger rule be 1, so iterate mser once
                 imli_larger_rule_size = 2 if imli_larger_rule_size == 1 else imli_larger_rule_size
-                lqdnfmaxsat_best_result = pd.DataFrame([[
+                imlib_best_result = pd.DataFrame([[
                     f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: 0', [], 0, 0, 0, 0.0, 0.0
                 ]], columns=columns)
 
                 for mser in tqdm(range(1, imli_larger_rule_size), desc=f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: ?'):
-                    lqdnfmaxsat_model = LQDNFMaxSAT(
+                    imlib_model = IMLIB(
                         max_rule_set_size = mrss,
                         max_size_each_rule = mser,
                         rules_accuracy_weight = raw,
@@ -85,22 +84,22 @@ for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | m
                         balance_instances_seed = balance_instances_seed
                     )
 
-                    lqdnfmaxsat_model.fit(X_train, y_train)
+                    imlib_model.fit(X_train, y_train)
 
-                    lqdnfmaxsat_accuracy = lqdnfmaxsat_model.score(X_test, y_test)
+                    imlib_accuracy = imlib_model.score(X_test, y_test)
 
-                    if lqdnfmaxsat_accuracy > lqdnfmaxsat_best_result['Accuracy'].iloc[0]:
-                        lqdnfmaxsat_best_result = pd.DataFrame([[
+                    if imlib_accuracy > imlib_best_result['Accuracy'].iloc[0]:
+                        imlib_best_result = pd.DataFrame([[
                             f'lpp: {lpp} | mrss: {mrss} | raw: {raw} | mser: {mser}',
-                            lqdnfmaxsat_model.get_rules_size(),
-                            lqdnfmaxsat_model.get_rule_set_size(),
-                            lqdnfmaxsat_model.get_sum_rules_size(),
-                            lqdnfmaxsat_model.get_larger_rule_size(),
-                            lqdnfmaxsat_accuracy,
-                            lqdnfmaxsat_model.get_total_time_solver_solutions()
+                            imlib_model.get_rules_size(),
+                            imlib_model.get_rule_set_size(),
+                            imlib_model.get_sum_rules_size(),
+                            imlib_model.get_larger_rule_size(),
+                            imlib_accuracy,
+                            imlib_model.get_total_time_solver_solutions()
                         ]], columns=columns)
 
-                lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_best_result])
+                imlib_results_df = pd.concat([imlib_results_df, imlib_best_result])
 
             imli_averages = pd.DataFrame([[
                 'Averages',
@@ -114,18 +113,18 @@ for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | m
 
             imli_results_df = pd.concat([imli_results_df, imli_averages])
 
-            lqdnfmaxsat_averages = pd.DataFrame([[
+            imlib_averages = pd.DataFrame([[
                 'Averages',
                 '',
-                lqdnfmaxsat_results_df['Rule set size'].iloc[-1: -number_realizations-1: -1].mean(),
-                lqdnfmaxsat_results_df['Sum rules size'].iloc[-1: -number_realizations-1: -1].mean(),
-                lqdnfmaxsat_results_df['Larger rule size'].iloc[-1: -number_realizations-1: -1].mean(),
-                lqdnfmaxsat_results_df['Accuracy'].iloc[-1: -number_realizations-1: -1].mean(),
-                lqdnfmaxsat_results_df['Training time'].iloc[-1: -number_realizations-1: -1].mean()
+                imlib_results_df['Rule set size'].iloc[-1: -number_realizations-1: -1].mean(),
+                imlib_results_df['Sum rules size'].iloc[-1: -number_realizations-1: -1].mean(),
+                imlib_results_df['Larger rule size'].iloc[-1: -number_realizations-1: -1].mean(),
+                imlib_results_df['Accuracy'].iloc[-1: -number_realizations-1: -1].mean(),
+                imlib_results_df['Training time'].iloc[-1: -number_realizations-1: -1].mean()
             ]], columns=columns)
 
-            lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_averages])
+            imlib_results_df = pd.concat([imlib_results_df, imlib_averages])
 
 # save results in csv file
 imli_results_df.to_csv(imli_results_path, index=False)
-lqdnfmaxsat_results_df.to_csv(lqdnfmaxsat_results_path, index=False)
+imlib_results_df.to_csv(imlib_results_path, index=False)

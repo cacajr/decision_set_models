@@ -7,7 +7,7 @@ from pysat.examples.rc2 import RC2
 import time
 
 
-class LQDNFMaxSAT:
+class IMLIB:
     ''' Description of Params
 
         max_rule_set_size: must be a integer and represents the maximum number of 
