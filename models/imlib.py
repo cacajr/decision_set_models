@@ -186,7 +186,7 @@ class IMLIB:
         features = self.__dataset_binarized.get_normal_features_label()
         wcnf_formula = WCNF()
 
-        # (7.5)
+        # (7.5) (15)
         for i in range(self.__max_rule_set_size):    # i ∈ {1, ..., m}
             for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
                 clause = []
@@ -196,7 +196,7 @@ class IMLIB:
 
                 wcnf_formula.append(clause)
         
-        # (7.5.1)
+        # (7.5.1) (17)
         if len(previous_solution) == 0:
             for i in range(self.__max_rule_set_size):
                 for j in range(self.__max_size_each_rule):
@@ -208,7 +208,7 @@ class IMLIB:
             for literal in x_literals:
                 wcnf_formula.append([literal], weight=self.__rules_size_weight)
 
-        # (7.6)
+        # (7.6) (16)
         for i in range(self.__max_rule_set_size):
             for j in range(self.__max_size_each_rule):
                 for t in range(len(features)):
@@ -216,7 +216,7 @@ class IMLIB:
                         wcnf_formula.append([-self.__x(i,j,t), -self.__x(i,j,tl)])
                     wcnf_formula.append([-self.__x(i,j,t), -self.__x(i,j)])
         
-        # (7.7)
+        # (7.7) (18)
         for i in range(self.__max_rule_set_size):
             clause = []
             for j in range(self.__max_size_each_rule):
@@ -224,7 +224,7 @@ class IMLIB:
             
             wcnf_formula.append(clause)
 
-        # (7.8)
+        # (7.8) (19)
         for i in range(self.__max_rule_set_size):
             for j in range(self.__max_size_each_rule):
                 for t in range(len(features)):
@@ -242,28 +242,25 @@ class IMLIB:
                             [-self.__x(i,j,t), self.__p(i,j), -literal_y]
                         )
 
-        # (7.9)
+        # (7.9) (20)
         for i in range(self.__max_rule_set_size):
             for j in range(self.__max_size_each_rule):
                 for w in range(len(X_norm)):
                     wcnf_formula.append([-self.__x(i,j), self.__y(i,j,w)])
 
-        # (7.10)
+        # (7.10) (21)
         for i in range(self.__max_rule_set_size):
             for w in range(len(X_norm)):
                 clauses = []
-                weights = []
                 clause = [self.__z(i,w)]
                 for j in range(self.__max_size_each_rule):
                     clauses.append([-self.__z(i,w), self.__y(i,j,w)])
-                    weights.append(self.__rules_accuracy_weight)
                     clause.append(-self.__y(i,j,w))
                 clauses.append(clause)
-                weights.append(self.__rules_accuracy_weight)
 
-                wcnf_formula.extend(clauses, weights=weights)
+                wcnf_formula.extend(clauses)
 
-        # (7.11)
+        # (7.11) (22)
         for u in np.where(y == 1)[0]:    # u ∈ P
             clause = []
             for i in range(self.__max_rule_set_size):
@@ -271,7 +268,7 @@ class IMLIB:
             
             wcnf_formula.append(clause, weight= self.__rules_accuracy_weight)
 
-        # (7.12)
+        # (7.12) (23)
         for v in np.where(y == 0)[0]:    # v ∈ N
             for i in range(self.__max_rule_set_size):
                 wcnf_formula.append(
