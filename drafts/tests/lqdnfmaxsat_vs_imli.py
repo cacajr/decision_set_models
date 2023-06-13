@@ -102,15 +102,14 @@ for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | m
 
                 lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_best_result])
 
-            '''  WARNING!!! THIS PART IS WRONG!!!
             imli_averages = pd.DataFrame([[
                 'Averages',
                 '',
-                imli_results_df['Rule set size'].iloc[-1: -number_realizations+1: -1].mean(),
-                imli_results_df['Sum rules size'].iloc[-1: -number_realizations+1: -1].mean(),
-                imli_results_df['Larger rule size'].iloc[-1: -number_realizations+1: -1].mean(),
-                imli_results_df['Accuracy'].iloc[-1: -number_realizations+1: -1].mean(),
-                imli_results_df['Training time'].iloc[-1: -number_realizations+1: -1].mean()
+                imli_results_df['Rule set size'].iloc[-1: -number_realizations-1: -1].mean(),
+                imli_results_df['Sum rules size'].iloc[-1: -number_realizations-1: -1].mean(),
+                imli_results_df['Larger rule size'].iloc[-1: -number_realizations-1: -1].mean(),
+                imli_results_df['Accuracy'].iloc[-1: -number_realizations-1: -1].mean(),
+                imli_results_df['Training time'].iloc[-1: -number_realizations-1: -1].mean()
             ]], columns=columns)
 
             imli_results_df = pd.concat([imli_results_df, imli_averages])
@@ -118,15 +117,14 @@ for lpp in tqdm(number_lines_per_partition, desc=f'lpp: 0 | mrss: 0 | raw: 0 | m
             lqdnfmaxsat_averages = pd.DataFrame([[
                 'Averages',
                 '',
-                lqdnfmaxsat_results_df['Rule set size'].iloc[-1: -number_realizations+1: -1].mean(),
-                lqdnfmaxsat_results_df['Sum rules size'].iloc[-1: -number_realizations+1: -1].mean(),
-                lqdnfmaxsat_results_df['Larger rule size'].iloc[-1: -number_realizations+1: -1].mean(),
-                lqdnfmaxsat_results_df['Accuracy'].iloc[-1: -number_realizations+1: -1].mean(),
-                lqdnfmaxsat_results_df['Training time'].iloc[-1: -number_realizations+1: -1].mean()
+                lqdnfmaxsat_results_df['Rule set size'].iloc[-1: -number_realizations-1: -1].mean(),
+                lqdnfmaxsat_results_df['Sum rules size'].iloc[-1: -number_realizations-1: -1].mean(),
+                lqdnfmaxsat_results_df['Larger rule size'].iloc[-1: -number_realizations-1: -1].mean(),
+                lqdnfmaxsat_results_df['Accuracy'].iloc[-1: -number_realizations-1: -1].mean(),
+                lqdnfmaxsat_results_df['Training time'].iloc[-1: -number_realizations-1: -1].mean()
             ]], columns=columns)
 
             lqdnfmaxsat_results_df = pd.concat([lqdnfmaxsat_results_df, lqdnfmaxsat_averages])
-            '''
 
 # save results in csv file
 imli_results_df.to_csv(imli_results_path, index=False)
