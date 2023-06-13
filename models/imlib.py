@@ -16,8 +16,12 @@ class IMLIB:
         max_size_each_rule: must be a integer and represents the maximum number of
         literals per rule/clause
 
-        rules_accuracy_weight: must be a integer and represents how accurate should
-        the rule be. The higher, the more accurate the rule should be
+        rules_size_weight: must be a integer and represents the desired level of 
+        rule size. A higher value indicates a smaller expected rule size
+
+        rules_accuracy_weight: must be a integer and represents the desired level of 
+        accuracy for the rule. A higher value indicates a higher level of accuracy 
+        expected from the rule
 
         time_out_each_partition: must be an integer and represents the maximum
         time in seconds that Solver has to solve one partition
@@ -43,6 +47,7 @@ class IMLIB:
     def __init__(self,
             max_rule_set_size = 2,
             max_size_each_rule = 3,
+            rules_size_weight = 1,
             rules_accuracy_weight = 10,
             time_out_each_partition = 1024,
             categorical_columns_index=[],
@@ -55,6 +60,7 @@ class IMLIB:
         self.__validate_init_params(
             max_rule_set_size,
             max_size_each_rule,
+            rules_size_weight,
             rules_accuracy_weight,
             time_out_each_partition,
             categorical_columns_index,
@@ -66,6 +72,7 @@ class IMLIB:
 
         self.__max_rule_set_size = max_rule_set_size
         self.__max_size_each_rule = max_size_each_rule
+        self.__rules_size_weight = rules_size_weight
         self.__rules_accuracy_weight = rules_accuracy_weight
         self.__time_out_each_partition = time_out_each_partition
         self.__categorical_columns_index = categorical_columns_index
@@ -87,6 +94,7 @@ class IMLIB:
     def __validate_init_params(self,
             max_rule_set_size,
             max_size_each_rule,
+            rules_size_weight,
             rules_accuracy_weight,
             time_out_each_partition,
             categorical_columns_index,
@@ -100,6 +108,8 @@ class IMLIB:
             raise Exception('Param max_rule_set_size must be an int')
         if type(max_size_each_rule) is not int:
             raise Exception('Param max_size_each_rule must be an int')
+        if type(rules_size_weight) is not int:
+            raise Exception('Param rules_size_weight must be an int')
         if type(rules_accuracy_weight) is not int:
             raise Exception('Param rules_accuracy_weight must be an int')
         if type(time_out_each_partition) is not int:
@@ -191,12 +201,12 @@ class IMLIB:
             for i in range(self.__max_rule_set_size):
                 for j in range(self.__max_size_each_rule):
                     for t in range(len(features)):
-                        wcnf_formula.append([-self.__x(i,j,t)], weight=1)
-                    wcnf_formula.append([self.__x(i,j)], weight=1)
+                        wcnf_formula.append([-self.__x(i,j,t)], weight=self.__rules_size_weight)
+                    wcnf_formula.append([self.__x(i,j)], weight=self.__rules_size_weight)
         else:
             x_literals = self.__get_x_literals(features)
             for literal in x_literals:
-                wcnf_formula.append([literal], weight=1)
+                wcnf_formula.append([literal], weight=self.__rules_size_weight)
 
         # (7.6)
         for i in range(self.__max_rule_set_size):
