@@ -1,4 +1,4 @@
-Configuration,Rules size,Rule set size,Sum rules size,Larger rule size,Accuracy,Training time
+Configuration,Rules size,Number of rules,|R|,Largest rule size,Accuracy,Training time
 lpp: 8 | mrss: 1 | raw: 5 | mser: 2,[2],1,2,2,0.7307692307692307,0.22287201881408691
 lpp: 8 | mrss: 1 | raw: 5 | mser: 3,[3],1,3,3,0.7762237762237763,0.33980751037597656
 lpp: 8 | mrss: 1 | raw: 5 | mser: 1,[1],1,1,1,0.8391608391608392,0.14487385749816895
