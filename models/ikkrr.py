@@ -144,7 +144,7 @@ class IKKRR:
             wcnf_formula = self.__create_wcnf_formula(
                 self.__solver_solution,
                 X_normal_partition,
-                1 - y_partition     # invert y to generate DNF rules
+                y_partition
             )
 
             # TODO: add a new MaxSAT solver option
@@ -252,7 +252,6 @@ class IKKRR:
     def __reset_literals(self):
         self.__literals = IDPool()
 
-    # TODO
     def __create_rules(self):
         normal_features = self.__dataset_binarized.get_normal_features_label()
         opposite_features = self.__dataset_binarized.get_opposite_features_label()
@@ -264,8 +263,13 @@ class IKKRR:
         
         for l in range(self.__max_rule_set_size):
             for j in range(len(normal_features)):
-                # TODO
-                # ...
+                if -self.__p(j,l) in p_literals:
+                    rules_features[l].append(normal_features[j])
+                    rules_columns[l].append(j+1)
+                
+                if -self.__pl(j,l) in p_literals:
+                    rules_features[l].append(opposite_features[j])
+                    rules_columns[l].append(-(j+1))
 
         self.__rules_features = rules_features
         self.__rules_columns = rules_columns
