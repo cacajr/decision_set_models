@@ -1,6 +1,6 @@
 import sys, os
-if not sys.path[0] == os.path.abspath('...'):
-    sys.path.insert(0, os.path.abspath('...'))
+if not sys.path[0] == os.path.abspath('.'):
+    sys.path.insert(0, os.path.abspath('.'))
 
 # from models.imlib import IMLIB
 from models.imli import IMLI
@@ -13,8 +13,8 @@ from tqdm import tqdm
 
 
 # training configurations
-database_name = 'iris'
-categorical_columns_index = []
+database_name = 'twitter'
+categorical_columns_index = [42, 43, 44, 45, 46, 47, 48]
 number_lines_per_partition = [8, 16]
 max_rule_set_sizes = [1, 2, 3]
 # max_sizes_each_rule = [1, 2, 3]
