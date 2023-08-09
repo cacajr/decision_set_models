@@ -1,0 +1,4 @@
+.venv
+venv
+_pycache_/
+wcnf_formula.wcnf

@@ -150,7 +150,7 @@ class IMLI:
             # TODO: add a new MaxSAT solver option
 
             # WARNING: this line is used just to debug --------------------------------
-            # wcnf_formula.to_file('./imli_wcnf_formula.wcnf')
+            # wcnf_formula.to_file('./wcnf_formula.wcnf')
             # -------------------------------------------------------------------------
 
             solver = RC2(wcnf_formula)
