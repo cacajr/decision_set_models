@@ -1,4 +1,5 @@
 .venv
 venv
-_pycache_/
+__pycache__/
 wcnf_formula.wcnf
+debug.py
