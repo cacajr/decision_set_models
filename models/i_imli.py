@@ -174,11 +174,18 @@ class I_IMLI:
 
             self.__solver_solution = list([])
 
-            X_normal_partitions, X_opposite_partitions, y_partitions = self.__remove_covered_samples(
+            X_normal_partitions, X_opposite_partitions, y_partitions, has_covered_sample = self.__remove_covered_samples(
                 X_normal_partitions,
                 X_opposite_partitions,
                 y_partitions
             )
+
+            # remove rule that did not cover new samples and stops generating new rules
+            if not has_covered_sample:
+                self.__rules_features.pop(-1)
+                self.__rules_columns.pop(-1)
+
+                break
 
         self.__prune_rules()
         self.__rules_features_string = self.__create_rules_features_string(
@@ -282,7 +289,7 @@ class I_IMLI:
     def __get_b_literals(self, features):
         number_features = len(features)
         start = 0
-        end = 2 * number_features * self.__max_rule_set_size
+        end = 2 * number_features * 1
         
         return self.__solver_solution[start:end]
 
@@ -364,7 +371,7 @@ class I_IMLI:
         return self.__rules_features_string
 
     def __remove_covered_samples(self, X_norm, X_oppo, y):
-        new_X_norm, new_X_oppo, new_y = [], [], []
+        new_X_norm, new_X_oppo, new_y, has_covered_sample = [], [], [], False
 
         for X_normal_partition, X_opposite_partition, y_partition in zip(X_norm, X_oppo, y):
             
@@ -381,6 +388,7 @@ class I_IMLI:
 
                 # we consider rules in DNF in this verifications
                 if predict == 1 and partial_predict == predict: # in this case, this sample was covered
+                    has_covered_sample = True
                     continue
                 if predict == 0 and partial_predict == 1:   # in this case, this sample will never be covered
                     continue
@@ -391,7 +399,7 @@ class I_IMLI:
             new_X_oppo.append(X_opposite_partition[index_not_covered_samples])
             new_y.append(y_partition[index_not_covered_samples])
         
-        return new_X_norm, new_X_oppo, new_y
+        return new_X_norm, new_X_oppo, new_y, has_covered_sample
 
     def predict(self, instance):
         self.__validate_instance(instance)

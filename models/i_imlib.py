@@ -183,11 +183,18 @@ class I_IMLIB:
 
             self.__solver_solution = list([])
 
-            X_normal_partitions, X_opposite_partitions, y_partitions = self.__remove_covered_samples(
+            X_normal_partitions, X_opposite_partitions, y_partitions, has_covered_sample = self.__remove_covered_samples(
                 X_normal_partitions,
                 X_opposite_partitions,
                 y_partitions
             )
+
+            # remove rule that did not cover new samples and stops generating new rules
+            if not has_covered_sample:
+                # self.__rules_features.pop(-1)
+                # self.__rules_columns.pop(-1)
+
+                break
 
         self.__prune_rules()
         self.__rules_features_string = self.__create_rules_features_string(
@@ -335,15 +342,15 @@ class I_IMLIB:
     def __get_x_literals(self, features):
         number_features = len(features)
         start = 0
-        end = (number_features + 1) * self.__max_rule_set_size * self.__max_size_each_rule
+        end = (number_features + 1) * 1 * self.__max_size_each_rule
         
         return self.__solver_solution[start:end]
 
     def __get_p_literals(self, features, X_norm):
         number_features = len(features)
         number_instances = len(X_norm)
-        start = (number_features + 1) * self.__max_rule_set_size * self.__max_size_each_rule
-        end = start + ((number_instances + 1) * self.__max_rule_set_size * self.__max_size_each_rule)
+        start = (number_features + 1) * 1 * self.__max_size_each_rule
+        end = start + ((number_instances + 1) * 1 * self.__max_size_each_rule)
 
         p_literals_region = self.__solver_solution[start:end]
 
@@ -424,7 +431,7 @@ class I_IMLIB:
         return rules_features_string
 
     def __remove_covered_samples(self, X_norm, X_oppo, y):
-        new_X_norm, new_X_oppo, new_y = [], [], []
+        new_X_norm, new_X_oppo, new_y, has_covered_sample = [], [], [], False
 
         for X_normal_partition, X_opposite_partition, y_partition in zip(X_norm, X_oppo, y):
             
@@ -441,6 +448,7 @@ class I_IMLIB:
 
                 # we consider rules in DNF in this verifications
                 if predict == 1 and partial_predict == predict: # in this case, this sample was covered
+                    has_covered_sample = True
                     continue
                 if predict == 0 and partial_predict == 1:   # in this case, this sample will never be covered
                     continue
@@ -451,7 +459,7 @@ class I_IMLIB:
             new_X_oppo.append(X_opposite_partition[index_not_covered_samples])
             new_y.append(y_partition[index_not_covered_samples])
         
-        return new_X_norm, new_X_oppo, new_y
+        return new_X_norm, new_X_oppo, new_y, has_covered_sample
 
     def get_rules(self):
         return self.__rules_features_string
