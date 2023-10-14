@@ -178,7 +178,7 @@ class Binarize:
         # -----------------------------------------------------------------------
 
     def __create_binary_columns(self, feature, column, unique_values):
-        binarized_columns = pd.get_dummies(column)
+        binarized_columns = pd.get_dummies(column).astype(int)
         new_feats = binarized_columns.columns
         binarized_columns = binarized_columns.set_axis(
             [f'{feature} {label}' for label in new_feats],
@@ -212,7 +212,7 @@ class Binarize:
         return new_feats
 
     def __create_categorical_columns(self, feature, column, unique_values):
-        binarized_columns = pd.get_dummies(column)
+        binarized_columns = pd.get_dummies(column).astype(int)
         new_feats = binarized_columns.columns
 
         # adding original to binarized values map --------------------------------
