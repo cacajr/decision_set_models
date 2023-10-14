@@ -191,8 +191,8 @@ class I_IMLIB:
 
             # remove rule that did not cover new samples and stops generating new rules
             if not has_covered_sample:
-                # self.__rules_features.pop(-1)
-                # self.__rules_columns.pop(-1)
+                self.__rules_features.pop()
+                self.__rules_columns.pop()
 
                 break
 
