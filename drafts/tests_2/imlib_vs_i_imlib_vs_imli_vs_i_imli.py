@@ -10,6 +10,7 @@ from models.i_imli import I_IMLI
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
 from scipy.stats import entropy
 from tqdm import tqdm
 
@@ -57,7 +58,7 @@ number_realizations = 10
 
 for database_name, categorical_columns_index in zip(database_names, categorical_columns_indexes):
     ''' - Results tables configurations '''
-    columns = ['Configuration', 'Rule sizes', 'Average deviation of rule sizes', 'Standard deviation of rule sizes', 'Entropy of rule sizes', 'Number of rules', '|R|', 'Largest rule size', 'Accuracy', 'Training time']
+    columns = ['Configuration', 'Rule sizes', 'Average deviation of rule sizes', 'Standard deviation of rule sizes', 'Entropy of rule sizes', 'Number of rules', '|R|', 'Largest rule size', 'Accuracy', 'Training time', 'Confusion matrix']
     imli_results_df = pd.DataFrame([], columns=columns)
     i_imli_results_df = pd.DataFrame([], columns=columns)
     imlib_results_df = pd.DataFrame([], columns=columns)
@@ -218,6 +219,7 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
         imli_std_deviation_rules_size = np.std(imli_rules_size)
         imli_sum_rules_size = sum(imli_rules_size)
         imli_entropy_rules_size = entropy([size/imli_sum_rules_size for size in imli_rules_size], base=2)
+        imli_predicts = [imli_model.predict(sample) for sample in X_test.values]
         imli_result = pd.DataFrame([[
             f'lpp: {imli_best_config[0]} | mrss: {imli_best_config[1]} | raw: {imli_best_config[2]}',
             imli_rules_size,
@@ -228,7 +230,8 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
             imli_model.get_sum_rules_size(),
             imli_model.get_larger_rule_size(),
             imli_model.score(X_test, y_test),
-            imli_model.get_total_time_solver_solutions()
+            imli_model.get_total_time_solver_solutions(),
+            confusion_matrix(y_test, imli_predicts)
         ]], columns=columns)
 
         i_imli_rules_size = i_imli_model.get_rules_size()
@@ -236,6 +239,7 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
         i_imli_std_deviation_rules_size = np.std(i_imli_rules_size)
         i_imli_sum_rules_size = sum(i_imli_rules_size)
         i_imli_entropy_rules_size = entropy([size/i_imli_sum_rules_size for size in i_imli_rules_size], base=2)
+        i_imli_predicts = [i_imli_model.predict(sample) for sample in X_test.values]
         i_imli_result = pd.DataFrame([[
             f'lpp: {i_imli_best_config[0]} | mrss: {i_imli_best_config[1]} | raw: {i_imli_best_config[2]}',
             i_imli_rules_size,
@@ -246,7 +250,8 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
             i_imli_model.get_sum_rules_size(),
             i_imli_model.get_larger_rule_size(),
             i_imli_model.score(X_test, y_test),
-            i_imli_model.get_total_time_solver_solutions()
+            i_imli_model.get_total_time_solver_solutions(),
+            confusion_matrix(y_test, i_imli_predicts)
         ]], columns=columns)
 
         imlib_rules_size = imlib_model.get_rules_size()
@@ -254,6 +259,7 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
         imlib_std_deviation_rules_size = np.std(imlib_rules_size)
         imlib_sum_rules_size = sum(imlib_rules_size)
         imlib_entropy_rules_size = entropy([size/imlib_sum_rules_size for size in imlib_rules_size], base=2)
+        imlib_predicts = [imlib_model.predict(sample) for sample in X_test.values]
         imlib_result = pd.DataFrame([[
             f'lpp: {imlib_best_config[0]} | mrss: {imlib_best_config[1]} | raw: {imlib_best_config[2]} | mser: {imlib_best_config[3]}',
             imlib_rules_size,
@@ -264,7 +270,8 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
             imlib_model.get_sum_rules_size(),
             imlib_model.get_larger_rule_size(),
             imlib_model.score(X_test, y_test),
-            imlib_model.get_total_time_solver_solutions()
+            imlib_model.get_total_time_solver_solutions(),
+            confusion_matrix(y_test, imlib_predicts)
         ]], columns=columns)
 
         i_imlib_rules_size = i_imlib_model.get_rules_size()
@@ -272,6 +279,7 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
         i_imlib_std_deviation_rules_size = np.std(i_imlib_rules_size)
         i_imlib_sum_rules_size = sum(i_imlib_rules_size)
         i_imlib_entropy_rules_size = entropy([size/i_imlib_sum_rules_size for size in i_imlib_rules_size], base=2)
+        i_imlib_predicts = [i_imlib_model.predict(sample) for sample in X_test.values]
         i_imlib_result = pd.DataFrame([[
             f'lpp: {i_imlib_best_config[0]} | mrss: {i_imlib_best_config[1]} | raw: {i_imlib_best_config[2]} | mser: {i_imlib_best_config[3]}',
             i_imlib_rules_size,
@@ -282,7 +290,8 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
             i_imlib_model.get_sum_rules_size(),
             i_imlib_model.get_larger_rule_size(),
             i_imlib_model.score(X_test, y_test),
-            i_imlib_model.get_total_time_solver_solutions()
+            i_imlib_model.get_total_time_solver_solutions(),
+            confusion_matrix(y_test, i_imlib_predicts)
         ]], columns=columns)
 
         imli_results_df = pd.concat([imli_results_df, imli_result])
@@ -293,56 +302,60 @@ for database_name, categorical_columns_index in zip(database_names, categorical_
     imli_averages = pd.DataFrame([[
         'Averages',
         '',
-        imli_results_df['Average deviation of rule sizes'].mean(),
-        imli_results_df['Standard deviation of rule sizes'].mean(),
-        imli_results_df['Entropy of rule sizes'].mean(),
-        imli_results_df['Number of rules'].mean(),
-        imli_results_df['|R|'].mean(),
-        imli_results_df['Largest rule size'].mean(),
-        imli_results_df['Accuracy'].mean(),
-        imli_results_df['Training time'].mean()
+        f"{round(imli_results_df['Average deviation of rule sizes'].mean(), 4)} ± {round(imli_results_df['Average deviation of rule sizes'].std(), 4)}",
+        f"{round(imli_results_df['Standard deviation of rule sizes'].mean(), 4)} ± {round(imli_results_df['Standard deviation of rule sizes'].std(), 4)}",
+        f"{round(imli_results_df['Entropy of rule sizes'].mean(), 4)} ± {round(imli_results_df['Entropy of rule sizes'].std(), 4)}",
+        f"{round(imli_results_df['Number of rules'].mean(), 4)} ± {round(imli_results_df['Number of rules'].std(), 4)}",
+        f"{round(imli_results_df['|R|'].mean(), 4)} ± {round(imli_results_df['|R|'].std(), 4)}",
+        f"{round(imli_results_df['Largest rule size'].mean(), 4)} ± {round(imli_results_df['Largest rule size'].std(), 4)}",
+        f"{round(imli_results_df['Accuracy'].mean(), 4)} ± {round(imli_results_df['Accuracy'].std(), 4)}",
+        f"{round(imli_results_df['Training time'].mean(), 4)} ± {round(imli_results_df['Training time'].std(), 4)}",
+        ''
     ]], columns=columns)
     imli_results_df = pd.concat([imli_results_df, imli_averages])
 
     i_imli_averages = pd.DataFrame([[
         'Averages',
         '',
-        i_imli_results_df['Average deviation of rule sizes'].mean(),
-        i_imli_results_df['Standard deviation of rule sizes'].mean(),
-        i_imli_results_df['Entropy of rule sizes'].mean(),
-        i_imli_results_df['Number of rules'].mean(),
-        i_imli_results_df['|R|'].mean(),
-        i_imli_results_df['Largest rule size'].mean(),
-        i_imli_results_df['Accuracy'].mean(),
-        i_imli_results_df['Training time'].mean()
+        f"{round(i_imli_results_df['Average deviation of rule sizes'].mean(), 4)} ± {round(i_imli_results_df['Average deviation of rule sizes'].std(), 4)}",
+        f"{round(i_imli_results_df['Standard deviation of rule sizes'].mean(), 4)} ± {round(i_imli_results_df['Standard deviation of rule sizes'].std(), 4)}",
+        f"{round(i_imli_results_df['Entropy of rule sizes'].mean(), 4)} ± {round(i_imli_results_df['Entropy of rule sizes'].std(), 4)}",
+        f"{round(i_imli_results_df['Number of rules'].mean(), 4)} ± {round(i_imli_results_df['Number of rules'].std(), 4)}",
+        f"{round(i_imli_results_df['|R|'].mean(), 4)} ± {round(i_imli_results_df['|R|'].std(), 4)}",
+        f"{round(i_imli_results_df['Largest rule size'].mean(), 4)} ± {round(i_imli_results_df['Largest rule size'].std(), 4)}",
+        f"{round(i_imli_results_df['Accuracy'].mean(), 4)} ± {round(i_imli_results_df['Accuracy'].std(), 4)}",
+        f"{round(i_imli_results_df['Training time'].mean(), 4)} ± {round(i_imli_results_df['Training time'].std(), 4)}",
+        ''
     ]], columns=columns)
     i_imli_results_df = pd.concat([i_imli_results_df, i_imli_averages])
 
     imlib_averages = pd.DataFrame([[
         'Averages',
         '',
-        imlib_results_df['Average deviation of rule sizes'].mean(),
-        imlib_results_df['Standard deviation of rule sizes'].mean(),
-        imlib_results_df['Entropy of rule sizes'].mean(),
-        imlib_results_df['Number of rules'].mean(),
-        imlib_results_df['|R|'].mean(),
-        imlib_results_df['Largest rule size'].mean(),
-        imlib_results_df['Accuracy'].mean(),
-        imlib_results_df['Training time'].mean()
+        f"{round(imlib_results_df['Average deviation of rule sizes'].mean(), 4)} ± {round(imlib_results_df['Average deviation of rule sizes'].std(), 4)}",
+        f"{round(imlib_results_df['Standard deviation of rule sizes'].mean(), 4)} ± {round(imlib_results_df['Standard deviation of rule sizes'].std(), 4)}",
+        f"{round(imlib_results_df['Entropy of rule sizes'].mean(), 4)} ± {round(imlib_results_df['Entropy of rule sizes'].std(), 4)}",
+        f"{round(imlib_results_df['Number of rules'].mean(), 4)} ± {round(imlib_results_df['Number of rules'].std(), 4)}",
+        f"{round(imlib_results_df['|R|'].mean(), 4)} ± {round(imlib_results_df['|R|'].std(), 4)}",
+        f"{round(imlib_results_df['Largest rule size'].mean(), 4)} ± {round(imlib_results_df['Largest rule size'].std(), 4)}",
+        f"{round(imlib_results_df['Accuracy'].mean(), 4)} ± {round(imlib_results_df['Accuracy'].std(), 4)}",
+        f"{round(imlib_results_df['Training time'].mean(), 4)} ± {round(imlib_results_df['Training time'].std(), 4)}",
+        ''
     ]], columns=columns)
     imlib_results_df = pd.concat([imlib_results_df, imlib_averages])
 
     i_imlib_averages = pd.DataFrame([[
         'Averages',
         '',
-        i_imlib_results_df['Average deviation of rule sizes'].mean(),
-        i_imlib_results_df['Standard deviation of rule sizes'].mean(),
-        i_imlib_results_df['Entropy of rule sizes'].mean(),
-        i_imlib_results_df['Number of rules'].mean(),
-        i_imlib_results_df['|R|'].mean(),
-        i_imlib_results_df['Largest rule size'].mean(),
-        i_imlib_results_df['Accuracy'].mean(),
-        i_imlib_results_df['Training time'].mean()
+        f"{round(i_imlib_results_df['Average deviation of rule sizes'].mean(), 4)} ± {round(i_imlib_results_df['Average deviation of rule sizes'].std(), 4)}",
+        f"{round(i_imlib_results_df['Standard deviation of rule sizes'].mean(), 4)} ± {round(i_imlib_results_df['Standard deviation of rule sizes'].std(), 4)}",
+        f"{round(i_imlib_results_df['Entropy of rule sizes'].mean(), 4)} ± {round(i_imlib_results_df['Entropy of rule sizes'].std(), 4)}",
+        f"{round(i_imlib_results_df['Number of rules'].mean(), 4)} ± {round(i_imlib_results_df['Number of rules'].std(), 4)}",
+        f"{round(i_imlib_results_df['|R|'].mean(), 4)} ± {round(i_imlib_results_df['|R|'].std(), 4)}",
+        f"{round(i_imlib_results_df['Largest rule size'].mean(), 4)} ± {round(i_imlib_results_df['Largest rule size'].std(), 4)}",
+        f"{round(i_imlib_results_df['Accuracy'].mean(), 4)} ± {round(i_imlib_results_df['Accuracy'].std(), 4)}",
+        f"{round(i_imlib_results_df['Training time'].mean(), 4)} ± {round(i_imlib_results_df['Training time'].std(), 4)}",
+        ''
     ]], columns=columns)
     i_imlib_results_df = pd.concat([i_imlib_results_df, i_imlib_averages])
 
