@@ -226,26 +226,6 @@ class DI_IMLIB:
             x_literals = self.__get_x_literals(features)
             for literal in x_literals:
                 wcnf_formula.append([literal], weight=self.__rules_size_weight)
-
-        # (7.5.2) restrictions that ensure that the rules are inconsistent
-        if len(self.__rules_features) > 0:
-            n = 0
-            for rule in self.__rules_columns:
-                clause = []
-                for column in rule:
-                    t = abs(column) - 1
-                    for j in range(self.__max_size_each_rule):
-                        wcnf_formula.append(
-                            [-self.__a(n), self.__x(0,j,t)]
-                        )
-                        wcnf_formula.append(
-                            [-self.__a(n), self.__p(0,j) if column < 0 else -self.__p(0,j)]
-                        )
-
-                        clause.append(self.__a(n))
-                        n += 1
-
-                wcnf_formula.append(clause)
         
         # (7.6) (16)
         for i in range(1):
@@ -314,6 +294,26 @@ class DI_IMLIB:
                     [-self.__z(i,v)], 
                     weight= self.__rules_accuracy_weight
                 )
+
+        # (7.5.2) restrictions that ensure that the rules are inconsistent
+        if len(self.__rules_columns) > 0:
+            n = 0
+            for rule in self.__rules_columns:
+                clause = []
+                for column in rule:
+                    t = abs(column) - 1
+                    for j in range(self.__max_size_each_rule):
+                        wcnf_formula.append(
+                            [-self.__a(n), self.__x(0,j,t)]
+                        )
+                        wcnf_formula.append(
+                            [-self.__a(n), self.__p(0,j) if column < 0 else -self.__p(0,j)]
+                        )
+
+                        clause.append(self.__a(n))
+                        n += 1
+
+                wcnf_formula.append(clause)
 
         return wcnf_formula
 
