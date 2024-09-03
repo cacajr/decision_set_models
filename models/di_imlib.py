@@ -449,7 +449,7 @@ class DI_IMLIB:
                         rule_features.append(opposite_features[abs(column)-1])
                 rules_features.append(rule_features)
 
-        self.__rules_features[clss_label] = rules_features
+            self.__rules_features[clss_label] = rules_features
 
     def __create_rules_features_string(self, rules_features):
         classes_labels = self.__dataset_binarized.get_classes_label()
