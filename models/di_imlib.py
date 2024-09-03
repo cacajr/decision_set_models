@@ -87,8 +87,8 @@ class DI_IMLIB:
         self.__solver_solution = list([])
         self.__total_time_solver_solutions = 0.0
 
-        self.__rules_features = list([])
-        self.__rules_columns = list([])
+        self.__rules_features = dict()
+        self.__rules_columns = dict()
         self.__rules_features_string = str('')
 
     def __validate_init_params(self,
@@ -133,6 +133,7 @@ class DI_IMLIB:
         self.__dataset_binarized = Binarize(
             data_frame=X,
             series=y,
+            multiclass=True,
             categorical_columns_index=self.__categorical_columns_index,
             number_quantiles_ordinal_columns=self.__number_quantiles_ordinal_columns,
             number_partitions=number_partitions,
@@ -142,59 +143,65 @@ class DI_IMLIB:
 
         X_normal_partitions = self.__dataset_binarized.get_normal_instances()
         X_opposite_partitions = self.__dataset_binarized.get_opposite_instances()
-        y_partitions = self.__dataset_binarized.get_classes()
+        list_y_partitions = self.__dataset_binarized.get_classes()
+        classes_labels = self.__dataset_binarized.get_classes_label()
 
-        for _ in range(self.__max_rule_set_size):
+        for y_partitions, clss_label in zip(list_y_partitions, classes_labels):
+            self.__rules_features[clss_label] = []
+            self.__rules_columns[clss_label] = []
+            
+            for _ in range(self.__max_rule_set_size):
 
-            for index_partition, (X_normal_partition, y_partition) in enumerate(
-                    zip(
-                        X_normal_partitions,
-                        y_partitions
+                for index_partition, (X_normal_partition, y_partition) in enumerate(
+                        zip(
+                            X_normal_partitions,
+                            y_partitions
+                        )
+                    ):
+
+                    wcnf_formula = self.__create_wcnf_formula(
+                        self.__solver_solution,
+                        X_normal_partition,
+                        y_partition
                     )
-                ):
 
-                wcnf_formula = self.__create_wcnf_formula(
-                    self.__solver_solution,
-                    X_normal_partition,
-                    y_partition
+                    # TODO: add a new MaxSAT solver option
+
+                    # WARNING: this line is used just to debug --------------------------------
+                    # wcnf_formula.to_file('./models/wcnf_formula.wcnf')
+                    # -------------------------------------------------------------------------
+
+                    solver = RC2(wcnf_formula)
+
+                    start = time.time()
+                    self.__solver_solution = solver.compute()   # TODO: add time out calculate
+                    end = time.time()
+
+                    self.__total_time_solver_solutions += end - start
+
+                    if self.__solver_solution == None:
+                        raise Exception(f'Partition {index_partition + 1} unsatisfiable')
+
+                    if index_partition == number_partitions - 1:
+                        self.__create_rules(X_normal_partition, clss_label)
+
+                    self.__reset_literals()
+
+                self.__solver_solution = list([])
+
+                X_normal_partitions, X_opposite_partitions, y_partitions, has_covered_sample = self.__remove_covered_samples(
+                    X_normal_partitions,
+                    X_opposite_partitions,
+                    y_partitions,
+                    clss_label
                 )
 
-                # TODO: add a new MaxSAT solver option
+                # remove rule that did not cover new samples and stops generating new rules
+                if not has_covered_sample:
+                    self.__rules_features[clss_label].pop()
+                    self.__rules_columns[clss_label].pop()
 
-                # WARNING: this line is used just to debug --------------------------------
-                # wcnf_formula.to_file('./models/wcnf_formula.wcnf')
-                # -------------------------------------------------------------------------
-
-                solver = RC2(wcnf_formula)
-
-                start = time.time()
-                self.__solver_solution = solver.compute()   # TODO: add time out calculate
-                end = time.time()
-
-                self.__total_time_solver_solutions += end - start
-
-                if self.__solver_solution == None:
-                    raise Exception(f'Partition {index_partition + 1} unsatisfiable')
-
-                if index_partition == number_partitions - 1:
-                    self.__create_rules(X_normal_partition)
-
-                self.__reset_literals()
-
-            self.__solver_solution = list([])
-
-            X_normal_partitions, X_opposite_partitions, y_partitions, has_covered_sample = self.__remove_covered_samples(
-                X_normal_partitions,
-                X_opposite_partitions,
-                y_partitions
-            )
-
-            # remove rule that did not cover new samples and stops generating new rules
-            if not has_covered_sample:
-                self.__rules_features.pop()
-                self.__rules_columns.pop()
-
-                break
+                    break
 
         self.__prune_rules()
         self.__rules_features_string = self.__create_rules_features_string(
@@ -296,24 +303,25 @@ class DI_IMLIB:
                 )
 
         # (7.5.2) restrictions that ensure that the rules are inconsistent
-        if len(self.__rules_columns) > 0:
-            n = 0
-            for rule in self.__rules_columns:
-                clause = []
-                for column in rule:
-                    t = abs(column) - 1
-                    for j in range(self.__max_size_each_rule):
-                        wcnf_formula.append(
-                            [-self.__a(n), self.__x(0,j,t)]
-                        )
-                        wcnf_formula.append(
-                            [-self.__a(n), self.__p(0,j) if column < 0 else -self.__p(0,j)]
-                        )
+        n = 0
+        for cls_label in self.__rules_columns.keys():
+            if len(self.__rules_columns[cls_label]) > 0:
+                for rule in self.__rules_columns[cls_label]:
+                    clause = []
+                    for column in rule:
+                        t = abs(column) - 1
+                        for j in range(self.__max_size_each_rule):
+                            wcnf_formula.append(
+                                [-self.__a(n), self.__x(0,j,t)]
+                            )
+                            wcnf_formula.append(
+                                [-self.__a(n), self.__p(0,j) if column < 0 else -self.__p(0,j)]
+                            )
 
-                        clause.append(self.__a(n))
-                        n += 1
+                            clause.append(self.__a(n))
+                            n += 1
 
-                wcnf_formula.append(clause)
+                    wcnf_formula.append(clause)
 
         return wcnf_formula
 
@@ -339,7 +347,7 @@ class DI_IMLIB:
     def __reset_literals(self):
         self.__literals = IDPool()
 
-    def __create_rules(self, X_norm):
+    def __create_rules(self, X_norm, clss_label):
         normal_features = self.__dataset_binarized.get_normal_features_label()
         opposite_features = self.__dataset_binarized.get_opposite_features_label()
 
@@ -363,8 +371,8 @@ class DI_IMLIB:
                             rules_features[i].append(opposite_features[t])
                             rules_columns[i].append(-(t+1))
 
-        self.__rules_features += rules_features
-        self.__rules_columns += rules_columns
+        self.__rules_features[clss_label] += rules_features
+        self.__rules_columns[clss_label] += rules_columns
     
     def __get_x_literals(self, features):
         number_features = len(features)
@@ -387,77 +395,85 @@ class DI_IMLIB:
         normal_features = self.__dataset_binarized.get_normal_features_label()
         opposite_features = self.__dataset_binarized.get_opposite_features_label()
 
-        # removing repeated literal in the same rule: (... A ∧ A ...)
-        for i_rule, rule in enumerate(self.__rules_columns):
-            self.__rules_columns[i_rule] = list(set(rule))
+        classes_labels = self.__dataset_binarized.get_classes_label()
 
-        # removing normal and opposite literals in the same rule: (... A ∧ ¬A ...)
-        rules_falsy = []
-        for rule in self.__rules_columns:
-            for column in rule:
-                if -column in rule:
-                    rules_falsy.append(rule)
-                    break
-        for rule in rules_falsy:
-            self.__rules_columns.remove(rule)
+        for clss_label in classes_labels:
+            # removing repeated literal in the same rule: (... A ∧ A ...)
+            for i_rule, rule in enumerate(self.__rules_columns[clss_label]):
+                self.__rules_columns[clss_label][i_rule] = list(set(rule))
 
-        # removing redundances in the same rule: (A <= 2 ∧ A <= 3) and (A > 2 ∧ A > 3)
-        ordinal_normal_index_columns = np.where([
-            feat.__contains__('<=') 
-            for feat in normal_features
-        ])[0]
-        for i in range(0, len(ordinal_normal_index_columns), self.__number_quantiles_ordinal_columns-1):
-            for rule in self.__rules_columns:
-                ordinal_normal_columns = []
-                ordinal_opposite_columns = []
+            # removing normal and opposite literals in the same rule: (... A ∧ ¬A ...)
+            rules_falsy = []
+            for rule in self.__rules_columns[clss_label]:
+                for column in rule:
+                    if -column in rule:
+                        rules_falsy.append(rule)
+                        break
+            for rule in rules_falsy:
+                self.__rules_columns[clss_label].remove(rule)
+
+            # removing redundances in the same rule: (A <= 2 ∧ A <= 3) and (A > 2 ∧ A > 3)
+            ordinal_normal_index_columns = np.where([
+                feat.__contains__('<=') 
+                for feat in normal_features
+            ])[0]
+            for i in range(0, len(ordinal_normal_index_columns), self.__number_quantiles_ordinal_columns-1):
+                for rule in self.__rules_columns[clss_label]:
+                    ordinal_normal_columns = []
+                    ordinal_opposite_columns = []
+                    for column in rule:
+                        if column > 0:
+                            if column - 1 in ordinal_normal_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
+                                ordinal_normal_columns.append(column)
+                        else:
+                            if abs(column) - 1 in ordinal_normal_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
+                                ordinal_opposite_columns.append(column)
+
+                    if len(ordinal_normal_columns) > 0:
+                        for column in ordinal_normal_columns:
+                            rule.remove(column)
+                        rule.append(min(ordinal_normal_columns))
+                    if len(ordinal_opposite_columns) > 0:
+                        for column in ordinal_opposite_columns:
+                            rule.remove(column)
+                        rule.append(min(ordinal_opposite_columns))
+
+            # update self.__rules_features
+            rules_features = []
+            for rule in self.__rules_columns[clss_label]:
+                rule_features = []
                 for column in rule:
                     if column > 0:
-                        if column - 1 in ordinal_normal_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
-                            ordinal_normal_columns.append(column)
+                        rule_features.append(normal_features[column-1])
                     else:
-                        if abs(column) - 1 in ordinal_normal_index_columns[i:i+self.__number_quantiles_ordinal_columns-1]:
-                            ordinal_opposite_columns.append(column)
+                        rule_features.append(opposite_features[abs(column)-1])
+                rules_features.append(rule_features)
 
-                if len(ordinal_normal_columns) > 0:
-                    for column in ordinal_normal_columns:
-                        rule.remove(column)
-                    rule.append(min(ordinal_normal_columns))
-                if len(ordinal_opposite_columns) > 0:
-                    for column in ordinal_opposite_columns:
-                        rule.remove(column)
-                    rule.append(min(ordinal_opposite_columns))
-
-        # update self.__rules_features
-        rules_features = []
-        for rule in self.__rules_columns:
-            rule_features = []
-            for column in rule:
-                if column > 0:
-                    rule_features.append(normal_features[column-1])
-                else:
-                    rule_features.append(opposite_features[abs(column)-1])
-            rules_features.append(rule_features)
-
-        self.__rules_features = rules_features
+        self.__rules_features[clss_label] = rules_features
 
     def __create_rules_features_string(self, rules_features):
+        classes_labels = self.__dataset_binarized.get_classes_label()
         rules_features_string = ''
-        for i in range(len(rules_features)):
-            rules_features_string += '('
-            for j in range(len(rules_features[i])):
-                rules_features_string += str(rules_features[i][j])
 
-                if j < len(rules_features[i]) - 1:
-                    rules_features_string += ' and '
-                else:
-                    rules_features_string += ')'
+        for cls_label in classes_labels:
+            for i in range(len(rules_features[cls_label])):
+                rules_features_string += '('
+                for j in range(len(rules_features[cls_label][i])):
+                    rules_features_string += str(rules_features[cls_label][i][j])
+
+                    if j < len(rules_features[cls_label][i]) - 1:
+                        rules_features_string += ' and '
+                    else:
+                        rules_features_string += ')'
+                
+                if i < len(rules_features[cls_label]) - 1:
+                    rules_features_string += ' or '
             
-            if i < len(rules_features) - 1:
-                rules_features_string += ' or '
+            rules_features_string += f' -> {cls_label}\n'
         
         return rules_features_string
 
-    def __remove_covered_samples(self, X_norm, X_oppo, y):
+    def __remove_covered_samples(self, X_norm, X_oppo, y, clss_label):
         new_X_norm, new_X_oppo, new_y, has_covered_sample = [], [], [], False
 
         for X_normal_partition, X_opposite_partition, y_partition in zip(X_norm, X_oppo, y):
@@ -471,7 +487,7 @@ class DI_IMLIB:
                     )
                 ):
 
-                partial_predict = self.__aplicate_DNF_rules(normal_sample, opposite_sample)
+                partial_predict = self.__aplicate_DNF_rules(normal_sample, opposite_sample, clss_label)
 
                 # we consider rules in DNF in this verifications
                 if predict == 1 and partial_predict == predict: # in this case, this sample was covered
@@ -494,14 +510,25 @@ class DI_IMLIB:
     def predict(self, instance):
         self.__validate_instance(instance)
 
-        binarized_to_original_class = self.__dataset_binarized.get_original_to_binarized_values()[-1]
+        classes_labels = self.__dataset_binarized.get_classes_label()
+
+        list_binarized_to_original_class = self.__dataset_binarized.get_original_to_binarized_values()[-len(classes_labels):]
         normal_instance_binarized, opposite_instance_binarized = self.__binarize_instance(instance)
         
-        predict = binarized_to_original_class[
-            self.__aplicate_DNF_rules(normal_instance_binarized, opposite_instance_binarized)
-        ]
+        for idx, cls_label in enumerate(classes_labels):
+            predict = self.__aplicate_DNF_rules(
+                normal_instance_binarized, 
+                opposite_instance_binarized,
+                cls_label
+            )
 
-        return predict
+            if predict == 1:
+                label = list_binarized_to_original_class[idx][predict]
+
+                return label
+
+        # the function will return this if no set of rules correctly classifies the instance
+        return 'No rule classifies this instance'
 
     def __validate_instance(self, instance):
         qtts_binarized_feat = self.__dataset_binarized.get_qtts_binarized_feat_per_original_feat()
@@ -555,9 +582,13 @@ class DI_IMLIB:
 
         return normal_instance_binarized, opposite_instance_binarized
 
-    def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized):
+    def __aplicate_DNF_rules(self, 
+            normal_instance_binarized, 
+            opposite_instance_binarized, 
+            clss_label
+        ):
         predict = 0
-        for rule_columns in self.__rules_columns:
+        for rule_columns in self.__rules_columns[clss_label]:
             for column in rule_columns:
                 if column < 0:
                     if opposite_instance_binarized[abs(column) - 1] == 0:
@@ -583,13 +614,18 @@ class DI_IMLIB:
             )
 
         hits_count = 0
+        not_covered_count = 0
         for i_line in range(X_test.index.size):
             predict = self.predict(X_test.iloc[i_line].values)
+
+            if predict == 'No rule classifies this instance':
+                not_covered_count += 1
+                continue
 
             if predict == y_test.values[i_line]:
                 hits_count += 1
 
-        return hits_count/y_test.size
+        return hits_count/(y_test.size - not_covered_count), not_covered_count
 
     # Utility functions -------------------------------------------------------------------
 
@@ -600,26 +636,44 @@ class DI_IMLIB:
         return self.__total_time_solver_solutions
 
     def get_rules_size(self):
-        rules_size = []
-        for rule in self.__rules_columns:
-            rules_size.append(len(rule))
+        classes_labels = self.__dataset_binarized.get_classes_label()
+        rules_size = dict()
+
+        for clss_label in classes_labels:
+            rules_size[clss_label] = []
+            for rule in self.__rules_columns[clss_label]:
+                rules_size[clss_label].append(len(rule))
 
         return rules_size
 
     def get_rule_set_size(self):
-        return len(self.__rules_columns)
+        classes_labels = self.__dataset_binarized.get_classes_label()
+        rule_set_size = dict()
+
+        for clss_label in classes_labels:
+            rule_set_size[clss_label] = len(self.__rules_columns[clss_label])
+
+        return rule_set_size
 
     def get_larger_rule_size(self):
-        larger_rule_size = 0
-        for rule in self.__rules_columns:
-            if larger_rule_size < len(rule):
-                larger_rule_size = len(rule)
+        classes_labels = self.__dataset_binarized.get_classes_label()
+        larger_rule_size = dict()
+
+        for clss_label in classes_labels:
+            larger_rule_size[clss_label] = 0
+            for rule in self.__rules_columns[clss_label]:
+                if larger_rule_size[clss_label] < len(rule):
+                    larger_rule_size[clss_label] = len(rule)
 
         return larger_rule_size
     
     def get_sum_rules_size(self):
-        sum_rules_size = 0
-        for rule in self.__rules_columns:
-            sum_rules_size += len(rule)
+        classes_labels = self.__dataset_binarized.get_classes_label()
+        sum_rules_size = dict()
+
+        for clss_label in classes_labels:
+            sum_rules_size[clss_label] = 0
+            for rule in self.__rules_columns[clss_label]:
+                sum_rules_size[clss_label] += len(rule)
 
         return sum_rules_size

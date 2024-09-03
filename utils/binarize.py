@@ -10,11 +10,14 @@ class Binarize:
         data_frame: must be a dataframe that save the dataset without class/target/y
         column
 
-        series: must be a binary series (yes/no, 0/1, mas/fem, etc) that save the 
-        class/target/y of the dataset
+        series: must be a series that save the class/target/y of the dataset
+        
+        multiclass: must be a boolean that represents if series param is multiclass.
+        If False, the series must be binary (0/1, 'fem'/'mal', true/false, etc).
+        If True, the series must be categorical (0/1/2, 'easy'/'normal'/'hard', etc)
 
         categorical_columns_index: must be a list with columns index that have 
-        categorical data
+        categorical data in data_frame param
 
         number_quantiles_ordinal_columns: must be an integer that represents the 
         number of quantiles/columns that the new representation will have
@@ -32,6 +35,7 @@ class Binarize:
     def __init__(self, 
             data_frame = pd.DataFrame([]),
             series = pd.Series([], dtype='object'),
+            multiclass = False,
             categorical_columns_index = [],
             number_quantiles_ordinal_columns = 5,
             number_partitions = 1,
@@ -42,6 +46,7 @@ class Binarize:
         self.__validate_init_params(
             data_frame,
             series,
+            multiclass,
             categorical_columns_index,
             number_quantiles_ordinal_columns,
             number_partitions,
@@ -52,6 +57,8 @@ class Binarize:
         self.__normal_features_labels = pd.array([])
         self.__opposite_features_labels = pd.array([])
         self.__qtts_columns_per_feature_label = pd.array([])
+        self.__classes_labels = np.array([])
+        self.__qtt_classes = int
 
         # this variables will be a list with arrays that will save each partition
         self.__binarized_normal_instances = pd.DataFrame([])
@@ -66,15 +73,17 @@ class Binarize:
         self.__binarize(
             data_frame,
             series,
+            multiclass,
             categorical_columns_index,
             number_quantiles_ordinal_columns
         )
 
-        self.__separate_partitions(balance_instances, balance_instances_seed)
+        self.__separate_partitions(balance_instances, balance_instances_seed, multiclass)
 
     def __validate_init_params(self,
             data_frame,
             series,
+            multiclass,
             categorical_columns_index,
             number_quantiles_ordinal_columns,
             number_partitions,
@@ -86,6 +95,8 @@ class Binarize:
             raise Exception('Param data_frame must be a pandas.DataFrame')
         if type(series) != pd.Series:
             raise Exception('Param series must be a pandas.Series')
+        if type(multiclass) is not bool:
+            raise Exception('Param multiclass must be a bool')
         if type(categorical_columns_index) is not list:
             raise Exception('Param categorical_columns_index must be a list')
         if type(number_quantiles_ordinal_columns) is not int:
@@ -99,14 +110,22 @@ class Binarize:
         
         if series.size != data_frame.index.size:
             raise Exception('Param series must be the same size as the data_frame.index')
-        if series.unique().size != 2:
-            raise Exception('Param series must be binary (0/1, yes/no, etc)')
+        if series.unique().size > 2 and not multiclass:
+            raise Exception(
+                f'Invalid series param. If the multiclass param is False, ' +
+                "the series must be binary (0/1, 'fem'/'mal', true/false, etc)"
+            )
+        if series.unique().size < 2:
+            raise Exception(
+                f'Invalid series param. The Series has less than two values'
+            )
         if number_partitions < 1 or number_partitions > data_frame.index.size:
             raise Exception("Param number_partitions is out of range data_frame's size")
 
     def __binarize(self, 
             data_frame,
             series, 
+            multiclass,
             categorical_columns_index, 
             number_quantiles_ordinal_columns
         ):
@@ -162,20 +181,38 @@ class Binarize:
         )
 
         series_unique_values = np.sort(series.unique())
-        self.__binarized_classes = series.replace(
-            {
-                series_unique_values[0]: 0, 
-                series_unique_values[1]: 1
-            }
-        )
+        self.__qtt_classes = len(series_unique_values)
 
-        # adding binarized to original values map in the last column (class) ----
-        unique_values_indexes = findIndexUniqueValues(series, series_unique_values)
-        values_map = {}
-        for index in unique_values_indexes:
-            values_map[self.__binarized_classes.values[index]] = series.values[index]
-        self.__original_to_binarized_values.append(values_map)
-        # -----------------------------------------------------------------------
+        if not multiclass:
+            self.__binarized_classes = series.replace(
+                {
+                    series_unique_values[0]: 0, 
+                    series_unique_values[1]: 1
+                }
+            )
+
+            self.__classes_labels = np.array([series_unique_values[1]])
+
+            # adding binarized to original values map in the last column (class) ----
+            unique_values_indexes = findIndexUniqueValues(series, series_unique_values)
+            values_map = {}
+            for index in unique_values_indexes:
+                values_map[self.__binarized_classes.values[index]] = series.values[index]
+            self.__original_to_binarized_values.append(values_map)
+            # -----------------------------------------------------------------------
+        else:
+            self.__binarized_classes = pd.get_dummies(series).astype(int)
+
+            self.__classes_labels = self.__binarized_classes.columns.values
+
+            # adding binarized to original values map in the last column (class) ----
+            for column in self.__binarized_classes.columns:
+                unique_values_indexes = findIndexUniqueValues(series, series_unique_values)
+                values_map = {}
+                for index in unique_values_indexes:
+                    values_map[self.__binarized_classes[column].values[index]] = series.values[index]
+                self.__original_to_binarized_values.append(values_map)
+            # -----------------------------------------------------------------------
 
     def __create_binary_columns(self, feature, column, unique_values):
         binarized_columns = pd.get_dummies(column).astype(int)
@@ -304,7 +341,7 @@ class Binarize:
 
         return new_feats
 
-    def __separate_partitions(self, balance_instances, balance_instances_seed):
+    def __separate_partitions(self, balance_instances, balance_instances_seed, multiclass):
         data_frame_binarized = self.__binarized_normal_instances
         series_binarized = self.__binarized_classes
 
@@ -318,26 +355,40 @@ class Binarize:
             self.__number_partitions
         )
 
-        self.__binarized_classes = np.array_split(
-            self.__binarized_classes.values, 
-            self.__number_partitions
-        )
+        if not multiclass:
+            self.__binarized_classes = np.array_split(
+                self.__binarized_classes.values, 
+                self.__number_partitions
+            )
+        else:
+            self.__binarized_classes = [
+                np.array_split(
+                    self.__binarized_classes[b_clss].values, 
+                    self.__number_partitions
+                )
+                for b_clss in self.__binarized_classes
+            ]
 
         if balance_instances:
             self.__balance_instances(
                 data_frame_binarized, 
                 series_binarized,
-                balance_instances_seed
+                balance_instances_seed,
+                multiclass
             )
 
     def __balance_instances(self, 
             data_frame_binarized, 
             series_binarized, 
-            balance_instances_seed
+            balance_instances_seed,
+            multiclass
         ):
 
         normal_instances_balanced = []
-        classes_balanced = []
+        if not multiclass:
+            classes_balanced = []
+        else:
+            classes_balanced = [[] for _ in range(self.__qtt_classes)]
 
         X_aux, y_aux = data_frame_binarized.values, series_binarized.values
         
@@ -349,7 +400,11 @@ class Binarize:
                 stratify=y_aux
             )
             normal_instances_balanced.append(np.concatenate((X1, X2)))
-            classes_balanced.append(np.concatenate((y1, y2)))
+            if not multiclass:
+                classes_balanced.append(np.concatenate((y1, y2)))
+            else:
+                for i in range(self.__qtt_classes):
+                    classes_balanced[i].append(np.concatenate((y1[:,i], y2[:,i])))
         else:
             for partition in self.__binarized_normal_instances[:-1]:
                 X1, X2, y1, y2 = train_test_split(
@@ -360,10 +415,19 @@ class Binarize:
                     random_state=balance_instances_seed
                 )
                 normal_instances_balanced.append(X1)
-                classes_balanced.append(y1)
+                if not multiclass:
+                    classes_balanced.append(y1)
+                else:
+                    for i in range(self.__qtt_classes):
+                        classes_balanced[i].append(y1[:,i])
                 X_aux, y_aux = X2, y2
+
             normal_instances_balanced.append(X_aux)
-            classes_balanced.append(y_aux)
+            if not multiclass:
+                classes_balanced.append(y_aux)
+            else:
+                for i in range(self.__qtt_classes):
+                    classes_balanced[i].append(y_aux[:,i])
 
         opposite_instances_balanced = [
             np.select([instance == 0, instance == 1], [1, 0], instance)
@@ -395,18 +459,37 @@ class Binarize:
 
         return self.__binarized_opposite_instances[partition - 1]
     
-    def get_classes(self, partition = 0):
-        if not self.__partition_validate(partition):
+    def get_classes(self, clss = None, partition = None):
+        if not self.__class_validate(clss):
+            raise Exception(
+                    f'Invalid clss param. The class does not exist'
+                )
+
+        if not self.__partition_validate(partition) and len(self.__classes_labels) == 1:
             return self.__binarized_classes
         
-        return self.__binarized_classes[partition - 1]
+        if not self.__partition_validate(partition) and len(self.__classes_labels) > 1:
+            if clss == None:
+                return self.__binarized_classes
+            return self.__binarized_classes[np.where(self.__classes_labels == clss)[0][0]]
+        
+        if clss == None:
+            raise Exception(
+                    f'Invalid clss param. Tell which class the partition is'
+                )
+        return self.__binarized_classes[np.where(self.__classes_labels == clss)[0][0]][partition - 1]
 
-
-    def __partition_validate(self, partition):
-        if partition < 1 or partition > self.__number_partitions: 
+    def __class_validate(self, clss):
+        if clss != None and clss not in self.__classes_labels: 
             return False
         
+        return True
+
+    def __partition_validate(self, partition):
         if type(partition) not in [int, float]: 
+            return False
+        
+        if partition < 1 or partition > self.__number_partitions: 
             return False
         
         return True
@@ -416,3 +499,9 @@ class Binarize:
 
     def get_number_partitions(self):
         return self.__number_partitions
+    
+    def get_classes_label(self):
+        return self.__classes_labels
+
+    def get_qtt_classes(self):
+        return self.__qtt_classes
