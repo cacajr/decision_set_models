@@ -146,18 +146,22 @@ class DI_IMLIB:
         list_y_partitions = self.__dataset_binarized.get_classes()
         classes_labels = self.__dataset_binarized.get_classes_label()
 
-        for y_partitions, clss_label in zip(list_y_partitions, classes_labels):
+        for idx_lbl, clss_label in enumerate(classes_labels):
             self.__rules_features[clss_label] = []
             self.__rules_columns[clss_label] = []
             
             for _ in range(self.__max_rule_set_size):
+                has_generated_rule = False
 
                 for index_partition, (X_normal_partition, y_partition) in enumerate(
                         zip(
                             X_normal_partitions,
-                            y_partitions
+                            list_y_partitions[idx_lbl]
                         )
                     ):
+
+                    if 1 not in y_partition:
+                        continue
 
                     wcnf_formula = self.__create_wcnf_formula(
                         self.__solver_solution,
@@ -184,24 +188,34 @@ class DI_IMLIB:
 
                     if index_partition == number_partitions - 1:
                         self.__create_rules(X_normal_partition, clss_label)
+                        has_generated_rule = True
 
                     self.__reset_literals()
 
                 self.__solver_solution = list([])
 
-                X_normal_partitions, X_opposite_partitions, y_partitions, has_covered_sample = self.__remove_covered_samples(
-                    X_normal_partitions,
-                    X_opposite_partitions,
-                    y_partitions,
-                    clss_label
-                )
+                if has_generated_rule:
+                    X_normal_partitions, X_opposite_partitions, list_y_partitions, has_covered_sample = self.__remove_covered_samples(
+                        X_normal_partitions,
+                        X_opposite_partitions,
+                        list_y_partitions,
+                        idx_lbl,
+                        clss_label
+                    )
 
-                # remove rule that did not cover new samples and stops generating new rules
-                if not has_covered_sample:
-                    self.__rules_features[clss_label].pop()
-                    self.__rules_columns[clss_label].pop()
+                    # remove rule that did not cover new samples and stops generating new rules
+                    if not has_covered_sample:
+                        self.__rules_features[clss_label].pop()
+                        self.__rules_columns[clss_label].pop()
 
+                        break
+                else:   # no samples with this class to learn
                     break
+
+            # reset dataset and predictions
+            X_normal_partitions = self.__dataset_binarized.get_normal_instances()
+            X_opposite_partitions = self.__dataset_binarized.get_opposite_instances()
+            list_y_partitions = self.__dataset_binarized.get_classes()
 
         self.__prune_rules()
         self.__rules_features_string = self.__create_rules_features_string(
@@ -359,9 +373,6 @@ class DI_IMLIB:
         
         for i in range(1):    # i ∈ {1, ..., m}
             for j in range(self.__max_size_each_rule):  # j ∈ {1, ..., l}
-                if self.__x(i,j) in x_literals:
-                    continue
-                
                 for t in range(len(normal_features)):  # t ∈ Φ U {*}
                     if self.__x(i,j,t) in x_literals:
                         if self.__p(i,j) in p_literals:
@@ -473,10 +484,12 @@ class DI_IMLIB:
         
         return rules_features_string
 
-    def __remove_covered_samples(self, X_norm, X_oppo, y, clss_label):
-        new_X_norm, new_X_oppo, new_y, has_covered_sample = [], [], [], False
+    def __remove_covered_samples(self, X_norm, X_oppo, list_y, idx_label, clss_label):
+        new_X_norm, new_X_oppo, new_list_y, has_covered_sample = [], [], [[] for _ in range(len(list_y))], False
 
-        for X_normal_partition, X_opposite_partition, y_partition in zip(X_norm, X_oppo, y):
+        for idx_partition, (X_normal_partition, X_opposite_partition, y_partition) in enumerate(
+                zip(X_norm, X_oppo, list_y[idx_label])
+            ):
             
             index_not_covered_samples = []
             for index_sample, (normal_sample, opposite_sample, predict) in enumerate(
@@ -493,16 +506,17 @@ class DI_IMLIB:
                 if predict == 1 and partial_predict == predict: # in this case, this sample was covered
                     has_covered_sample = True
                     continue
-                if predict == 0 and partial_predict == 1:   # in this case, this sample will never be covered
-                    continue
+                # if predict == 0 and partial_predict == 1:   # in this case, this sample will never be covered
+                #     continue
                     
                 index_not_covered_samples.append(index_sample)
 
             new_X_norm.append(X_normal_partition[index_not_covered_samples])
             new_X_oppo.append(X_opposite_partition[index_not_covered_samples])
-            new_y.append(y_partition[index_not_covered_samples])
+            for i in range(len(list_y)):
+                new_list_y[i].append(list_y[i][idx_partition][index_not_covered_samples])
         
-        return new_X_norm, new_X_oppo, new_y, has_covered_sample
+        return new_X_norm, new_X_oppo, new_list_y, has_covered_sample
 
     def get_rules(self):
         return self.__rules_features_string
@@ -543,7 +557,8 @@ class DI_IMLIB:
     def __binarize_instance(self, instance):
         normal_instance_binarized = []
 
-        original_to_binarized = self.__dataset_binarized.get_original_to_binarized_values()[:-1]
+        classes_labels = self.__dataset_binarized.get_classes_label()
+        original_to_binarized = self.__dataset_binarized.get_original_to_binarized_values()[:-len(classes_labels)]
         qtts_binarized_feat = self.__dataset_binarized.get_qtts_binarized_feat_per_original_feat()
 
         for i_num_feat, num_feat in enumerate(qtts_binarized_feat):

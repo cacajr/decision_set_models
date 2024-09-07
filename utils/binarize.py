@@ -397,7 +397,8 @@ class Binarize:
                 X_aux, 
                 y_aux, 
                 train_size=0.5, 
-                stratify=y_aux
+                stratify=y_aux,
+                random_state=balance_instances_seed
             )
             normal_instances_balanced.append(np.concatenate((X1, X2)))
             if not multiclass:
