@@ -552,11 +552,17 @@ class DI_IMLIB:
 
         return normal_instance_binarized, opposite_instance_binarized
 
-    def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized):
+    def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized, col = None, val = None):
         predict = 0
         for rule_columns in self.__rules_columns:
             for column in rule_columns:
-                if column < 0:
+                if column == col:
+                    if val == 0:
+                        predict = 0
+                        break
+                    else:
+                        predict = 1
+                elif column < 0:
                     if opposite_instance_binarized[abs(column) - 1] == 0:
                         predict = 0
                         break
@@ -587,6 +593,60 @@ class DI_IMLIB:
                 hits_count += 1
 
         return hits_count/y_test.size
+
+    def get_sufficient_reasons(self, instance):
+        self.__validate_instance(instance)
+
+        normal_instance_binarized, opposite_instance_binarized = self.__binarize_instance(instance)        
+        predict = self.__aplicate_DNF_rules(normal_instance_binarized, opposite_instance_binarized)
+
+        unique_col_feat = dict()
+        for i_r, rule in enumerate(self.__rules_columns):
+            for i_col, col in enumerate(rule):
+                unique_col_feat[col] = self.__rules_features[i_r][i_col]
+
+        unique_columns = list(unique_col_feat.keys())
+        unique_features = list(unique_col_feat.values())
+
+        for col in unique_columns:
+            if ((predict == 1 and self.__isValid(normal_instance_binarized, opposite_instance_binarized, col)) or 
+                (predict == 0 and not self.__isConsistent(normal_instance_binarized, opposite_instance_binarized, col))):
+                unique_features.remove(unique_col_feat[col])
+
+        sufficient_reasons = self.__create_sufficient_reasons_feature_string(unique_features)
+
+        return sufficient_reasons
+
+    def __isValid(self, normal_instance, opposite_instance, var):
+        for val in [0, 1]:
+            predict = self.__aplicate_DNF_rules(normal_instance, opposite_instance, var, val)
+
+            if predict == 0:
+                return False
+
+        return True
+
+    def __isConsistent(self, normal_instance, opposite_instance, var):
+        for val in [0, 1]:
+            predict = self.__aplicate_DNF_rules(normal_instance, opposite_instance, var, val)
+
+            if predict == 1:
+                return True
+
+        return False
+
+    def __create_sufficient_reasons_feature_string(self, unique_features):
+        sufficient_reasons_string = '('
+
+        for i_feat, feat in enumerate(unique_features):
+            sufficient_reasons_string += feat
+
+            if i_feat < len(unique_features) - 1:
+                sufficient_reasons_string += ' and '
+
+        sufficient_reasons_string += ')'
+
+        return sufficient_reasons_string
 
     # Utility functions -------------------------------------------------------------------
 
