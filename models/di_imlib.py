@@ -5,6 +5,7 @@ from pysat.formula import WCNF
 import numpy as np
 from pysat.examples.rc2 import RC2
 import time
+from itertools import product
 
 
 class DI_IMLIB:
@@ -552,12 +553,12 @@ class DI_IMLIB:
 
         return normal_instance_binarized, opposite_instance_binarized
 
-    def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized, col = None, val = None):
+    def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized, cols_vals = {}):
         predict = 0
         for rule_columns in self.__rules_columns:
             for column in rule_columns:
-                if column == col:
-                    if val == 0:
+                if column in cols_vals.keys():
+                    if cols_vals[column] == 0:
                         predict = 0
                         break
                     else:
@@ -608,27 +609,45 @@ class DI_IMLIB:
         unique_columns = list(unique_col_feat.keys())
         unique_features = list(unique_col_feat.values())
 
+        cols_removed = []
         for col in unique_columns:
-            if ((predict == 1 and self.__isValid(normal_instance_binarized, opposite_instance_binarized, col)) or 
-                (predict == 0 and not self.__isConsistent(normal_instance_binarized, opposite_instance_binarized, col))):
+            if ((predict == 1 and self.__isValid(normal_instance_binarized, opposite_instance_binarized, cols_removed + [col])) or 
+                (predict == 0 and not self.__isConsistent(normal_instance_binarized, opposite_instance_binarized, cols_removed + [col]))):
                 unique_features.remove(unique_col_feat[col])
+                cols_removed.append(col)
 
         sufficient_reasons = self.__create_sufficient_reasons_feature_string(unique_features)
 
         return sufficient_reasons
+    
+    def __isValid(self, normal_instance, opposite_instance, vars):
+        num_vals = len(vars)
+        combinations_vals = product([0, 1], repeat=num_vals)
+        list_vars_vals = []
 
-    def __isValid(self, normal_instance, opposite_instance, var):
-        for val in [0, 1]:
-            predict = self.__aplicate_DNF_rules(normal_instance, opposite_instance, var, val)
+        for comb in combinations_vals:
+            dict_vars_vals = {var: val for var, val in zip(vars, comb)}
+            list_vars_vals.append(dict_vars_vals)
+
+        for vars_vals in list_vars_vals:
+            predict = self.__aplicate_DNF_rules(normal_instance, opposite_instance, vars_vals)
 
             if predict == 0:
                 return False
 
         return True
+    
+    def __isConsistent(self, normal_instance, opposite_instance, vars):
+        num_vals = len(vars)
+        combinations_vals = product([1], repeat=num_vals)
+        list_vars_vals = []
 
-    def __isConsistent(self, normal_instance, opposite_instance, var):
-        for val in [0, 1]:
-            predict = self.__aplicate_DNF_rules(normal_instance, opposite_instance, var, val)
+        for comb in combinations_vals:
+            dict_vars_vals = {var: val for var, val in zip(vars, comb)}
+            list_vars_vals.append(dict_vars_vals)
+
+        for vars_vals in list_vars_vals:
+            predict = self.__aplicate_DNF_rules(normal_instance, opposite_instance, vars_vals)
 
             if predict == 1:
                 return True
