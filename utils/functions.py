@@ -15,3 +15,15 @@ def findIndexUniqueValues(series, unique_values):
                     return np.array(indexes)
 
     return np.array(indexes)
+
+def unique_abs_numbers_ordered_by_appearance(list_of_lists):
+    seen = set()
+    unique_numbers = []
+    
+    for sublist in list_of_lists:
+        for num in sublist:
+            if abs(num) not in seen:
+                seen.add(abs(num))
+                unique_numbers.append(abs(num))
+    
+    return unique_numbers

@@ -6,6 +6,7 @@ import numpy as np
 from pysat.examples.rc2 import RC2
 import time
 from itertools import product
+from utils.functions import unique_abs_numbers_ordered_by_appearance
 
 
 class DI_IMLIB:
@@ -553,17 +554,11 @@ class DI_IMLIB:
 
         return normal_instance_binarized, opposite_instance_binarized
 
-    def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized, cols_vals = {}):
+    def __aplicate_DNF_rules(self, normal_instance_binarized, opposite_instance_binarized):
         predict = 0
         for rule_columns in self.__rules_columns:
             for column in rule_columns:
-                if column in cols_vals.keys():
-                    if cols_vals[column] == 0:
-                        predict = 0
-                        break
-                    else:
-                        predict = 1
-                elif column < 0:
+                if column < 0:
                     if opposite_instance_binarized[abs(column) - 1] == 0:
                         predict = 0
                         break
@@ -575,6 +570,7 @@ class DI_IMLIB:
                         break
                     else:
                         predict = 1
+
             if predict == 1:
                 break
 
@@ -601,68 +597,149 @@ class DI_IMLIB:
         normal_instance_binarized, opposite_instance_binarized = self.__binarize_instance(instance)        
         predict = self.__aplicate_DNF_rules(normal_instance_binarized, opposite_instance_binarized)
 
-        unique_col_feat = dict()
-        for i_r, rule in enumerate(self.__rules_columns):
-            for i_col, col in enumerate(rule):
-                unique_col_feat[col] = self.__rules_features[i_r][i_col]
+        # just to debugg -----------------------------------------------------------------------------------------------
+        # print()
+        # instance_values = []
+        # for rule in self.__rules_columns:
+        #     r = []
+        #     for col in rule:
+        #         r.append({
+        #             col: opposite_instance_binarized[abs(col) - 1] if col < 0 else normal_instance_binarized[col - 1]
+        #         })
+        #     instance_values.append(r)
+        # print('Rules and Values:')
+        # print(instance_values)
+        # --------------------------------------------------------------------------------------------------------------
 
-        unique_columns = list(unique_col_feat.keys())
-        unique_features = list(unique_col_feat.values())
+        unique_cols = unique_abs_numbers_ordered_by_appearance(self.__rules_columns)
+        # print()
+        # print('Unique Columns:', unique_cols)
+        removed_cols = []
+        for col in unique_cols.copy():
+            simplify_rules = self.__conditioner(normal_instance_binarized, opposite_instance_binarized, removed_cols + [col])
 
-        cols_removed = []
-        for col in unique_columns:
-            if ((predict == 1 and self.__isValid(normal_instance_binarized, opposite_instance_binarized, cols_removed + [col])) or 
-                (predict == 0 and not self.__isConsistent(normal_instance_binarized, opposite_instance_binarized, cols_removed + [col]))):
-                unique_features.remove(unique_col_feat[col])
-                cols_removed.append(col)
+            # print()
+            # print('Simplify Rules with Variables:')
+            # print(removed_cols + [col])
+            # print('Rules simplified:')
+            # print(simplify_rules)
 
-        sufficient_reasons = self.__create_sufficient_reasons_feature_string(unique_features)
+            if ((predict == 0 and not self.__isConsistent(simplify_rules)) or 
+                (predict == 1 and self.__isValid(simplify_rules, removed_cols + [col]))):
+                unique_cols.remove(col)
+                removed_cols.append(col)
+
+        sufficient_reasons = self.__create_sufficient_reasons_feature_string(
+            normal_instance_binarized, opposite_instance_binarized, 
+            unique_cols, 
+            predict
+        )
 
         return sufficient_reasons
     
-    def __isValid(self, normal_instance, opposite_instance, vars):
-        num_vals = len(vars)
-        combinations_vals = product([0, 1], repeat=num_vals)
-        list_vars_vals = []
+    def __conditioner(self, normal_instance, opposite_instance, vars):
+        new_rules_columns = []
 
-        for comb in combinations_vals:
-            dict_vars_vals = {var: val for var, val in zip(vars, comb)}
-            list_vars_vals.append(dict_vars_vals)
+        for rule in self.__rules_columns:
+            new_rule = []
+            for col in rule:
+                if abs(col) not in vars:
+                    if col < 0:
+                        new_rule.append(opposite_instance[abs(col) - 1])
+                    else:
+                        new_rule.append(normal_instance[col - 1])
+                else:
+                    new_rule.append(col)
+            
+            if 0 in new_rule:
+                continue
 
-        for vars_vals in list_vars_vals:
-            predict = self.__aplicate_DNF_rules(normal_instance, opposite_instance, vars_vals)
+            new_rule = [col for col in new_rule if col != 1]
 
-            if predict == 0:
-                return False
-
-        return True
+            new_rules_columns.append(new_rule)
+        
+        return new_rules_columns
     
-    def __isConsistent(self, normal_instance, opposite_instance, vars):
-        num_vals = len(vars)
-        combinations_vals = product([1], repeat=num_vals)
-        list_vars_vals = []
+    def __isConsistent(self, rules_columns):
+        # in this case, all cols in some rule (term) was removed (had all constants 1)
+        if [] in rules_columns:
+            return True
 
-        for comb in combinations_vals:
-            dict_vars_vals = {var: val for var, val in zip(vars, comb)}
-            list_vars_vals.append(dict_vars_vals)
+        vars_vals = {}
 
-        for vars_vals in list_vars_vals:
-            predict = self.__aplicate_DNF_rules(normal_instance, opposite_instance, vars_vals)
+        predict = 0
+        for rule in rules_columns:
+            for col in rule:
+                if abs(col) not in vars_vals:
+                    if col < 0:
+                        vars_vals[abs(col)] = 0
+                    else:
+                        vars_vals[col] = 1
+                    
+                    predict = 1
+                else:
+                    if col < 0:
+                        predict = 1 - vars_vals[abs(col)]
+                    else:
+                        predict = vars_vals[col]
 
             if predict == 1:
                 return True
 
         return False
 
-    def __create_sufficient_reasons_feature_string(self, unique_features):
-        sufficient_reasons_string = '('
+    def __isValid(self, rules_columns, vars):
+        # in this case, all rules (terms) was removed (had constant 0)
+        if rules_columns == []:
+            return False
 
-        for i_feat, feat in enumerate(unique_features):
+        # in this case, all cols in some rule (term) was removed (had all constants 1)
+        if [] in rules_columns:
+            return True
+
+        num_vals = len(vars)
+        vals_combinations = product([0, 1], repeat=num_vals)
+        list_vars_vals = []
+        for comb in vals_combinations:
+            dict = {}
+            for i_v, var in enumerate(vars):
+                dict[var] = comb[i_v]
+            list_vars_vals.append(dict)
+
+        for vars_vals in list_vars_vals:
+            predict = 0
+            for rule in rules_columns:
+                for col in rule:
+                    if col < 0:
+                        predict = 1 - vars_vals[abs(col)]
+                    else:
+                        predict = vars_vals[col]
+
+            if predict == 0:
+                return False
+
+        return True
+
+    def __create_sufficient_reasons_feature_string(self, normal_instance, opposite_instance, cols, clss):
+        sufficient_reasons_features = set()
+        for i_r, rule in enumerate(self.__rules_columns):
+            for i_c, col in enumerate(rule):
+                if abs(col) not in cols:
+                    continue
+                
+                if col < 0:
+                    if opposite_instance[abs(col) - 1] == clss:
+                        sufficient_reasons_features.add(self.__rules_features[i_r][i_c])
+                else:
+                    if normal_instance[col - 1] == clss:
+                        sufficient_reasons_features.add(self.__rules_features[i_r][i_c])
+
+        sufficient_reasons_string = '('
+        for i_f, feat in enumerate(sufficient_reasons_features):
             sufficient_reasons_string += feat
 
-            if i_feat < len(unique_features) - 1:
+            if i_f < (len(sufficient_reasons_features) - 1):
                 sufficient_reasons_string += ' and '
-
         sufficient_reasons_string += ')'
 
         return sufficient_reasons_string
