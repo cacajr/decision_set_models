@@ -7,6 +7,7 @@ from pysat.examples.rc2 import RC2
 import time
 from itertools import product
 from utils.functions import unique_abs_numbers_ordered_by_appearance
+import re
 
 
 class DI_IMLIB:
@@ -734,6 +735,9 @@ class DI_IMLIB:
                     if normal_instance[col - 1] == clss:
                         sufficient_reasons_features.add(self.__rules_features[i_r][i_c])
 
+        # removing redundances in the reasons: (A <= 2 ∧ A <= 3) and (A > 2 ∧ A > 3)
+        sufficient_reasons_features = self.__remove_reasons_redundances(sufficient_reasons_features)
+
         sufficient_reasons_string = '('
         for i_f, feat in enumerate(sufficient_reasons_features):
             sufficient_reasons_string += feat
@@ -743,6 +747,45 @@ class DI_IMLIB:
         sufficient_reasons_string += ')'
 
         return sufficient_reasons_string
+
+    def __remove_reasons_redundances(self, reasons):
+        parsed = []
+        for literal in reasons:
+            match = re.match(r"(\w+)\s*([<>]=?)\s*(-?\d+)", literal)
+            if match:
+                var, op, value = match.groups()
+                value = int(value)
+                parsed.append((var, op, value, literal))
+
+        reduced = {}
+        
+        for var, op, value, literal in parsed:
+            if var not in reduced:
+                reduced[var] = []
+            reduced[var].append((op, value, literal))
+
+        final_literals = set(reasons)
+        
+        for var, conditions in reduced.items():
+            conditions.sort(key=lambda x: x[1])
+            
+            to_remove = set()
+            for i in range(len(conditions) - 1):
+                op1, val1, lit1 = conditions[i]
+                op2, val2, lit2 = conditions[i + 1]
+
+                if op1 == "<=" and op2 == "<=":
+                    to_remove.add(lit2)
+                elif op1 == ">=" and op2 == ">=":
+                    to_remove.add(lit1)
+                elif op1 == ">" and op2 == ">":
+                    to_remove.add(lit1)
+                elif op1 == "<" and op2 == "<":
+                    to_remove.add(lit2)
+
+            final_literals -= to_remove
+        
+        return list(final_literals)
 
     # Utility functions -------------------------------------------------------------------
 
