@@ -20,7 +20,7 @@ class Binarize:
         categorical data in data_frame param
 
         number_quantiles_ordinal_columns: must be an integer that represents the 
-        number of quantiles/columns that the new representation will have
+        number of quantiles/(columns = quantiles-1) that the new representation will have
 
         number_partitions: must be an integer that represents the number of 
         partitions
@@ -57,6 +57,7 @@ class Binarize:
         self.__normal_features_labels = pd.array([])
         self.__opposite_features_labels = pd.array([])
         self.__qtts_columns_per_feature_label = pd.array([])
+        self.__range_binarized_columns = pd.array([])
         self.__classes_labels = np.array([])
         self.__qtt_classes = int
 
@@ -131,6 +132,7 @@ class Binarize:
         ):
 
         qtts_columns_per_feature_label = []
+        range_binarized_columns = []
 
         for index_feat, feat in enumerate(data_frame):
             unique_values = data_frame[feat].unique()
@@ -140,6 +142,7 @@ class Binarize:
                 self.__original_to_binarized_values.append({})
 
                 qtts_columns_per_feature_label.append(0)
+                # range_binarized_columns.append((None, None))
 
                 continue
 
@@ -147,11 +150,13 @@ class Binarize:
                 self.__create_binary_columns(feat, data_frame[feat], unique_values)
 
                 qtts_columns_per_feature_label.append(1)
+                range_binarized_columns.append((1, 2) if len(range_binarized_columns) == 0 else (range_binarized_columns[-1][1] + 1, range_binarized_columns[-1][1] + 1))
 
             elif index_feat in categorical_columns_index:
                 new_feats = self.__create_categorical_columns(feat, data_frame[feat], unique_values)
 
                 qtts_columns_per_feature_label.append(len(new_feats))
+                range_binarized_columns.append((1, len(new_feats)) if len(range_binarized_columns) == 0 else (range_binarized_columns[-1][1] + 1, range_binarized_columns[-1][1] + len(new_feats)))
 
             elif 'float' in unique_values_dtype or 'int' in unique_values_dtype:
                 new_feats = self.__create_ordinal_columns(
@@ -161,6 +166,7 @@ class Binarize:
                 )
 
                 qtts_columns_per_feature_label.append(len(new_feats))
+                range_binarized_columns.append((1, len(new_feats)) if len(range_binarized_columns) == 0 else (range_binarized_columns[-1][1] + 1, range_binarized_columns[-1][1] + len(new_feats)))
 
             else:
                 raise Exception(
@@ -178,6 +184,10 @@ class Binarize:
 
         self.__qtts_columns_per_feature_label = pd.array(
             qtts_columns_per_feature_label
+        )
+
+        self.__range_binarized_columns = pd.array(
+            range_binarized_columns
         )
 
         series_unique_values = np.sort(series.unique())
@@ -447,6 +457,9 @@ class Binarize:
     
     def get_qtts_binarized_feat_per_original_feat(self):
         return self.__qtts_columns_per_feature_label
+
+    def get_range_binarized_columns(self):
+        return self.__range_binarized_columns
 
     def get_normal_instances(self, partition = 0):
         if not self.__partition_validate(partition):

@@ -33,7 +33,7 @@ class DI_IMLIB:
         categorical data
 
         number_quantiles_ordinal_columns: must be an integer that represents the 
-        number of quantiles/columns that the new representation will have
+        number of quantiles/(columns = quantiles - 1) that the new representation will have
 
         number_lines_per_partition: must be an integer that represents the number of 
         lines for each partitions. Depending on the number of instances in the training 
@@ -121,8 +121,8 @@ class DI_IMLIB:
             raise Exception('Param categorical_columns_index must be a list')
         if type(number_quantiles_ordinal_columns) is not int:
             raise Exception('Param number_quantiles_ordinal_columns must be an int')
-        if number_quantiles_ordinal_columns <= 2:
-            raise Exception('Param number_quantiles_ordinal_columns must be greater than 2')
+        if number_quantiles_ordinal_columns <= 1:
+            raise Exception('Param number_quantiles_ordinal_columns must be greater than 1')
         if type(number_lines_per_partition) is not int:
             raise Exception('Param number_lines_per_partition must be an int')
         if type(balance_instances) is not bool:
@@ -729,9 +729,11 @@ class DI_IMLIB:
                     continue
                 
                 if col < 0:
+                    # only those features that contribute to the classification will go to the sufficient reason
                     if opposite_instance[abs(col) - 1] == clss:
                         sufficient_reasons_features.add(self.__rules_features[i_r][i_c])
                 else:
+                    # only those features that contribute to the classification will go to the sufficient reason
                     if normal_instance[col - 1] == clss:
                         sufficient_reasons_features.add(self.__rules_features[i_r][i_c])
 
