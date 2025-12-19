@@ -5,7 +5,7 @@ from pysat.formula import WCNF
 import numpy as np
 from pysat.examples.rc2 import RC2
 import time
-from utils.functions import unique_abs_numbers_ordered_by_appearance, generate_consistent_assignments
+from utils.functions import unique_abs_numbers_ordered_by_appearance, rule_is_feasible, generate_consistent_assignments
 import re
 
 
@@ -597,32 +597,11 @@ class DI_IMLIB:
         normal_instance_binarized, opposite_instance_binarized = self.__binarize_instance(instance)        
         predict = self.__aplicate_DNF_rules(normal_instance_binarized, opposite_instance_binarized)
 
-        # just to debugg -----------------------------------------------------------------------------------------------
-        # print()
-        # instance_values = []
-        # for rule in self.__rules_columns:
-        #     r = []
-        #     for col in rule:
-        #         r.append({
-        #             col: opposite_instance_binarized[abs(col) - 1] if col < 0 else normal_instance_binarized[col - 1]
-        #         })
-        #     instance_values.append(r)
-        # print('Rules and Values:')
-        # print(instance_values)
-        # --------------------------------------------------------------------------------------------------------------
-
         unique_cols = unique_abs_numbers_ordered_by_appearance(self.__rules_columns)
-        # print()
-        # print('Unique Columns:', unique_cols)
+        
         removed_cols = []
         for col in unique_cols.copy():
             simplify_rules = self.__conditioner(normal_instance_binarized, opposite_instance_binarized, removed_cols + [col])
-
-            # print()
-            # print('Simplify Rules with Variables:')
-            # print(removed_cols + [col])
-            # print('Rules simplified:')
-            # print(simplify_rules)
 
             if ((predict == 0 and not self.__isConsistent(simplify_rules)) or 
                 (predict == 1 and self.__isValid(simplify_rules, removed_cols + [col]))):
@@ -666,9 +645,7 @@ class DI_IMLIB:
         if [] in rules_columns:
             return True
 
-        # fast per-rule feasibility check (avoid enumerating all assignments)
         positions = self.__dataset_binarized.get_binarized_columns_positions()
-        categorical_idx = set(self.__categorical_columns_index)
 
         # build mapping position -> (feature_idx, index_within_feature, full_pos_list)
         pos2feat = {}
@@ -676,57 +653,8 @@ class DI_IMLIB:
             for idx_in_feat, p in enumerate(pos_list):
                 pos2feat[p] = (feat_idx, idx_in_feat, pos_list)
 
-        def rule_is_feasible(rule):
-            # rule: list of signed ints (remaining free literals)
-            # collect requirements per feature
-            reqs_by_feat = {}
-            for col in rule:
-                p = abs(col)
-                req_val = 1 if col > 0 else 0
-                if p not in pos2feat:
-                    # unknown position -> treat as infeasible
-                    return False
-                feat_idx, idx_in_feat, full_pos = pos2feat[p]
-                if feat_idx not in reqs_by_feat:
-                    reqs_by_feat[feat_idx] = {'full_pos': full_pos, 'reqs': {}}
-                # conflict check for same position
-                if p in reqs_by_feat[feat_idx]['reqs'] and reqs_by_feat[feat_idx]['reqs'][p] != req_val:
-                    return False
-                reqs_by_feat[feat_idx]['reqs'][p] = req_val
-
-            # check each group's feasibility independently
-            for feat_idx, info in reqs_by_feat.items():
-                full_pos = info['full_pos']
-                reqs = info['reqs']  # pos -> required value (0/1)
-
-                # single position group
-                if len(full_pos) == 1:
-                    # if there is any requirement on this pos, it's fine (either 0 or 1)
-                    # no further group constraint
-                    continue
-
-                # one-hot categorical group (at most one 1)
-                if feat_idx in categorical_idx and len(full_pos) > 1:
-                    ones = [p for p, v in reqs.items() if v == 1]
-                    # cannot require more than one position equal to 1
-                    if len(ones) > 1:
-                        return False
-                    # otherwise feasible
-                    continue
-
-                # ordinal group (suffix of ones: zeros -> ones)
-                # positions are ordered in full_pos
-                pos_index = {p: idx for idx, p in enumerate(full_pos)}
-                ones_idx = [pos_index[p] for p, v in reqs.items() if v == 1]
-                zeros_idx = [pos_index[p] for p, v in reqs.items() if v == 0]
-                # for zeros->ones the last zero must come before the first one
-                if ones_idx and zeros_idx and max(zeros_idx) >= min(ones_idx):
-                    return False
-                # otherwise feasible
-            return True
-
         for rule in rules_columns:
-            if rule_is_feasible(rule):
+            if rule_is_feasible(rule, self.__categorical_columns_index, pos2feat):
                 return True
         return False
 

@@ -102,3 +102,54 @@ def generate_consistent_assignments(vars_list, binarized_columns_positions, cate
         for part in combo:
             merged.update(part)
         yield merged
+
+def rule_is_feasible(rule, categorical_columns_index, pos2feat):
+    # rule: list of signed ints (remaining free literals)
+    # pos2feat: mapping from position to (feature_idx, index_within_feature, full_pos_list)
+    # collect requirements per feature
+    reqs_by_feat = {}
+    for col in rule:
+        p = abs(col)
+        req_val = 1 if col > 0 else 0
+        if p not in pos2feat:
+            # unknown position -> treat as infeasible
+            return False
+        feat_idx, idx_in_feat, full_pos = pos2feat[p]
+        if feat_idx not in reqs_by_feat:
+            reqs_by_feat[feat_idx] = {'full_pos': full_pos, 'reqs': {}}
+        # conflict check for same position
+        if p in reqs_by_feat[feat_idx]['reqs'] and reqs_by_feat[feat_idx]['reqs'][p] != req_val:
+            return False
+        reqs_by_feat[feat_idx]['reqs'][p] = req_val
+
+    # check each group's feasibility independently
+    for feat_idx, info in reqs_by_feat.items():
+        full_pos = info['full_pos']
+        reqs = info['reqs']  # pos -> required value (0/1)
+
+        # single position group
+        if len(full_pos) == 1:
+            # if there is any requirement on this pos, it's fine (either 0 or 1)
+            # no further group constraint
+            continue
+
+        # one-hot categorical group (at most one 1)
+        if feat_idx in categorical_columns_index and len(full_pos) > 1:
+            ones = [p for p, v in reqs.items() if v == 1]
+            # cannot require more than one position equal to 1
+            if len(ones) > 1:
+                return False
+            # otherwise feasible
+            continue
+
+        # ordinal group (suffix of ones: zeros -> ones)
+        # positions are ordered in full_pos
+        pos_index = {p: idx for idx, p in enumerate(full_pos)}
+        ones_idx = [pos_index[p] for p, v in reqs.items() if v == 1]
+        zeros_idx = [pos_index[p] for p, v in reqs.items() if v == 0]
+        # for zeros->ones the last zero must come before the first one
+        if ones_idx and zeros_idx and max(zeros_idx) >= min(ones_idx):
+            return False
+        # otherwise feasible
+    return True
+    
