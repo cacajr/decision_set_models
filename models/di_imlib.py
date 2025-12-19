@@ -713,12 +713,13 @@ class DI_IMLIB:
                     # otherwise feasible
                     continue
 
-                # ordinal group (prefix of ones then zeros)
+                # ordinal group (suffix of ones: zeros -> ones)
                 # positions are ordered in full_pos
                 pos_index = {p: idx for idx, p in enumerate(full_pos)}
                 ones_idx = [pos_index[p] for p, v in reqs.items() if v == 1]
                 zeros_idx = [pos_index[p] for p, v in reqs.items() if v == 0]
-                if ones_idx and zeros_idx and max(ones_idx) >= min(zeros_idx):
+                # for zeros->ones the last zero must come before the first one
+                if ones_idx and zeros_idx and max(zeros_idx) >= min(ones_idx):
                     return False
                 # otherwise feasible
             return True
@@ -764,19 +765,22 @@ class DI_IMLIB:
 
     def __create_sufficient_reasons_feature_string(self, normal_instance, opposite_instance, cols, clss):
         sufficient_reasons_features = set()
-        for i_r, rule in enumerate(self.__rules_columns):
-            for i_c, col in enumerate(rule):
+        normal_labels = self.__dataset_binarized.get_normal_features_label()
+        opposite_labels = self.__dataset_binarized.get_opposite_features_label()
+
+        for _, rule in enumerate(self.__rules_columns):
+            for _, col in enumerate(rule):
                 if abs(col) not in cols:
                     continue
                 
                 if col < 0:
                     # only those features that contribute to the classification will go to the sufficient reason
                     if opposite_instance[abs(col) - 1] == clss:
-                        sufficient_reasons_features.add(self.__rules_features[i_r][i_c])
+                        sufficient_reasons_features.add(normal_labels[abs(col) - 1]) # invert the polarity in the sufficient reason to show the reason in terms of instance
                 else:
                     # only those features that contribute to the classification will go to the sufficient reason
                     if normal_instance[col - 1] == clss:
-                        sufficient_reasons_features.add(self.__rules_features[i_r][i_c])
+                        sufficient_reasons_features.add(opposite_labels[col - 1]) # invert the polarity in the sufficient reason to show the reason in terms of instance
 
         # removing redundances in the reasons: (A <= 2 ∧ A <= 3) and (A > 2 ∧ A > 3)
         sufficient_reasons_features = self.__remove_reasons_redundances(sufficient_reasons_features)

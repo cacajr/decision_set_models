@@ -85,8 +85,11 @@ def generate_consistent_assignments(vars_list, binarized_columns_positions, cate
         elif gtype == 'ordinal':
             # full patterns are prefixes of ones then zeros on full_pos
             seen = set()
-            for k in range(len(full_pos) + 1):
-                full_pattern = {p: (1 if idx < k else 0) for idx, p in enumerate(full_pos)}
+            # full patterns are suffixes of ones (zeros -> ones) on full_pos
+            n = len(full_pos)
+            for k in range(n + 1):
+                # k = number of trailing ones
+                full_pattern = {p: (1 if idx >= n - k else 0) for idx, p in enumerate(full_pos)}
                 assign = {p: full_pattern[p] for p in inter}
                 key = tuple(assign.items())
                 if key not in seen:
