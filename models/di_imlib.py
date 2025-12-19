@@ -649,12 +649,13 @@ class DI_IMLIB:
                     else:
                         new_rule.append(normal_instance[col - 1])
                 else:
-                    new_rule.append(col)
+                    # variable with position 1 is '1' to differentiate from the constant 1
+                    new_rule.append(col if col != 1 else str(col))
             
             if 0 in new_rule:
                 continue
 
-            new_rule = [col for col in new_rule if col != 1]
+            new_rule = [int(col) for col in new_rule if col != 1]
 
             new_rules_columns.append(new_rule)
         
@@ -776,11 +777,17 @@ class DI_IMLIB:
                 if col < 0:
                     # only those features that contribute to the classification will go to the sufficient reason
                     if opposite_instance[abs(col) - 1] == clss:
-                        sufficient_reasons_features.add(normal_labels[abs(col) - 1]) # invert the polarity in the sufficient reason to show the reason in terms of instance
+                        if clss == 0: # invert the polarity in the sufficient reason to show the reason in terms of instance
+                            sufficient_reasons_features.add(normal_labels[abs(col) - 1])
+                        else:
+                            sufficient_reasons_features.add(opposite_labels[abs(col) - 1])
                 else:
                     # only those features that contribute to the classification will go to the sufficient reason
-                    if normal_instance[col - 1] == clss:
-                        sufficient_reasons_features.add(opposite_labels[col - 1]) # invert the polarity in the sufficient reason to show the reason in terms of instance
+                    if normal_instance[col - 1] == clss: 
+                        if clss == 0: # invert the polarity in the sufficient reason to show the reason in terms of instance
+                            sufficient_reasons_features.add(opposite_labels[col - 1])
+                        else:
+                            sufficient_reasons_features.add(normal_labels[col - 1])
 
         # removing redundances in the reasons: (A <= 2 ∧ A <= 3) and (A > 2 ∧ A > 3)
         sufficient_reasons_features = self.__remove_reasons_redundances(sufficient_reasons_features)

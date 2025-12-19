@@ -83,9 +83,8 @@ def generate_consistent_assignments(vars_list, binarized_columns_positions, cate
                     seen.add(key)
                     assignments.append(assign)
         elif gtype == 'ordinal':
-            # full patterns are prefixes of ones then zeros on full_pos
-            seen = set()
             # full patterns are suffixes of ones (zeros -> ones) on full_pos
+            seen = set()
             n = len(full_pos)
             for k in range(n + 1):
                 # k = number of trailing ones
