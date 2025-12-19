@@ -5,8 +5,7 @@ from pysat.formula import WCNF
 import numpy as np
 from pysat.examples.rc2 import RC2
 import time
-from itertools import product
-from utils.functions import unique_abs_numbers_ordered_by_appearance
+from utils.functions import unique_abs_numbers_ordered_by_appearance, generate_consistent_assignments
 import re
 
 
@@ -666,27 +665,67 @@ class DI_IMLIB:
         if [] in rules_columns:
             return True
 
-        vars_vals = {}
+        # fast per-rule feasibility check (avoid enumerating all assignments)
+        positions = self.__dataset_binarized.get_binarized_columns_positions()
+        categorical_idx = set(self.__categorical_columns_index)
 
-        predict = 0
-        for rule in rules_columns:
+        # build mapping position -> (feature_idx, index_within_feature, full_pos_list)
+        pos2feat = {}
+        for feat_idx, pos_list in enumerate(positions):
+            for idx_in_feat, p in enumerate(pos_list):
+                pos2feat[p] = (feat_idx, idx_in_feat, pos_list)
+
+        def rule_is_feasible(rule):
+            # rule: list of signed ints (remaining free literals)
+            # collect requirements per feature
+            reqs_by_feat = {}
             for col in rule:
-                if abs(col) not in vars_vals:
-                    if col < 0:
-                        vars_vals[abs(col)] = 0
-                    else:
-                        vars_vals[col] = 1
-                    
-                    predict = 1
-                else:
-                    if col < 0:
-                        predict = 1 - vars_vals[abs(col)]
-                    else:
-                        predict = vars_vals[col]
+                p = abs(col)
+                req_val = 1 if col > 0 else 0
+                if p not in pos2feat:
+                    # unknown position -> treat as infeasible
+                    return False
+                feat_idx, idx_in_feat, full_pos = pos2feat[p]
+                if feat_idx not in reqs_by_feat:
+                    reqs_by_feat[feat_idx] = {'full_pos': full_pos, 'reqs': {}}
+                # conflict check for same position
+                if p in reqs_by_feat[feat_idx]['reqs'] and reqs_by_feat[feat_idx]['reqs'][p] != req_val:
+                    return False
+                reqs_by_feat[feat_idx]['reqs'][p] = req_val
 
-            if predict == 1:
+            # check each group's feasibility independently
+            for feat_idx, info in reqs_by_feat.items():
+                full_pos = info['full_pos']
+                reqs = info['reqs']  # pos -> required value (0/1)
+
+                # single position group
+                if len(full_pos) == 1:
+                    # if there is any requirement on this pos, it's fine (either 0 or 1)
+                    # no further group constraint
+                    continue
+
+                # one-hot categorical group (at most one 1)
+                if feat_idx in categorical_idx and len(full_pos) > 1:
+                    ones = [p for p, v in reqs.items() if v == 1]
+                    # cannot require more than one position equal to 1
+                    if len(ones) > 1:
+                        return False
+                    # otherwise feasible
+                    continue
+
+                # ordinal group (prefix of ones then zeros)
+                # positions are ordered in full_pos
+                pos_index = {p: idx for idx, p in enumerate(full_pos)}
+                ones_idx = [pos_index[p] for p, v in reqs.items() if v == 1]
+                zeros_idx = [pos_index[p] for p, v in reqs.items() if v == 0]
+                if ones_idx and zeros_idx and max(ones_idx) >= min(zeros_idx):
+                    return False
+                # otherwise feasible
+            return True
+
+        for rule in rules_columns:
+            if rule_is_feasible(rule):
                 return True
-
         return False
 
     def __isValid(self, rules_columns, vars):
@@ -698,24 +737,26 @@ class DI_IMLIB:
         if [] in rules_columns:
             return True
 
-        num_vals = len(vars)
-        vals_combinations = product([0, 1], repeat=num_vals)
-        list_vars_vals = []
-        for comb in vals_combinations:
-            dict = {}
-            for i_v, var in enumerate(vars):
-                dict[var] = comb[i_v]
-            list_vars_vals.append(dict)
-
-        for vars_vals in list_vars_vals:
+        # iterate only assignments consistent with dependencies
+        for assignment in generate_consistent_assignments(vars, self.__dataset_binarized.get_binarized_columns_positions(), self.__categorical_columns_index):
             predict = 0
             for rule in rules_columns:
+                sat = True
                 for col in rule:
+                    val = assignment.get(abs(col), None)
+                    if val is None:
+                        sat = False
+                        break
                     if col < 0:
-                        predict = 1 - vars_vals[abs(col)]
+                        lit = 1 - val
                     else:
-                        predict = vars_vals[col]
-
+                        lit = val
+                    if lit != 1:
+                        sat = False
+                        break
+                if sat:
+                    predict = 1
+                    break
             if predict == 0:
                 return False
 
