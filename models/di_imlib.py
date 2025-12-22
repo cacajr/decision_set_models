@@ -521,7 +521,7 @@ class DI_IMLIB:
         for i_num_feat, num_feat in enumerate(qtts_binarized_feat):
             if num_feat == 0:
                 continue
-            elif num_feat == 1:
+            elif num_feat == 1 and self.__number_quantiles_ordinal_columns > 2: # skip binary feature created from an ordinal feature with 2 quantiles
                 if instance[i_num_feat] in original_to_binarized[i_num_feat].keys():
                     normal_instance_binarized.append(original_to_binarized[i_num_feat][instance[i_num_feat]])
                 else:
@@ -604,7 +604,7 @@ class DI_IMLIB:
             simplify_rules = self.__conditioner(normal_instance_binarized, opposite_instance_binarized, removed_cols + [col])
 
             if ((predict == 0 and not self.__isConsistent(simplify_rules)) or 
-                (predict == 1 and self.__isValid(simplify_rules, removed_cols + [col]))):
+                (predict == 1 and self.__isValidPol(simplify_rules, removed_cols + [col]))):
                 unique_cols.remove(col)
                 removed_cols.append(col)
 
@@ -692,6 +692,140 @@ class DI_IMLIB:
 
         return True
 
+    def __isValidPol(self, rules_columns, vars):
+        """Polynomial check for validity under the assumption that the DNF is
+        pairwise-disjoint. Instead of enumerating all assignments, we count how
+        many distinct assignments (consistent with group constraints) are
+        satisfied by each clause and sum them — if sum equals the total
+        number of consistent assignments over the quantified variables, the
+        formula is valid.
+        """
+        # empty set of clauses -> not valid
+        if rules_columns == []:
+            return False
+
+        # a clause that is empty (always true) => valid
+        if [] in rules_columns:
+            return True
+
+        positions = self.__dataset_binarized.get_binarized_columns_positions()
+        vars_set = set(vars)
+
+        # Build feature groups that intersect the vars we quantify over
+        feat_infos = []  # list of (feat_idx, full_pos, inter, is_categorical)
+        for feat_idx, full_pos in enumerate(positions):
+            inter = [p for p in full_pos if p in vars_set]
+            if not inter:
+                continue
+            is_categorical = feat_idx in self.__categorical_columns_index and len(full_pos) > 1
+            feat_infos.append((feat_idx, full_pos, inter, is_categorical))
+
+        # If there are no variables to quantify, there is exactly one empty assignment
+        if len(feat_infos) == 0:
+            # valid iff there is an empty clause
+            for r in rules_columns:
+                if r == []:
+                    return True
+            return False
+
+        # For every feature, enumerate all possible projections on 'inter' (the
+        # assignments to the vars from that feature that are extendable to a
+        # full-group consistent assignment). We store the set of projection
+        # tuples (ordered according to inter) for each feature.
+        feat_projections = []  # list of (inter, projections_set)
+
+        for feat_idx, full_pos, inter, is_categorical in feat_infos:
+            projections = set()
+
+            n = len(full_pos)
+            # generate full-group options
+            if n == 1:
+                options = [{full_pos[0]: 0}, {full_pos[0]: 1}]
+            elif is_categorical:
+                # one-hot: none 1 or exactly one position 1
+                options = []
+                base = {p: 0 for p in full_pos}
+                options.append(base)
+                for p in full_pos:
+                    o = {q: 0 for q in full_pos}
+                    o[p] = 1
+                    options.append(o)
+            else:
+                # ordinal: suffix-of-ones patterns for k in 0..n
+                options = []
+                for k in range(0, n + 1):
+                    o = {}
+                    for idx, p in enumerate(full_pos):
+                        o[p] = 1 if idx >= n - k else 0
+                    options.append(o)
+
+            for opt in options:
+                proj = tuple(opt[p] for p in inter)
+                projections.add(proj)
+
+            feat_projections.append((inter, projections))
+
+        # Total number of distinct assignments over vars is the product of
+        # per-feature projection set sizes
+        total_assignments = 1
+        for _, projections in feat_projections:
+            total_assignments *= len(projections)
+
+        # Helper: map positions to feature index for quick lookup
+        pos2feat = {}
+        for feat_idx, full_pos in enumerate(positions):
+            for idx_in_feat, p in enumerate(full_pos):
+                pos2feat[p] = (feat_idx, idx_in_feat, full_pos)
+
+        # For each clause, compute how many distinct assignments over 'vars'
+        # satisfy it. If clause references positions not in vars, it cannot be
+        # satisfied by any assignment over vars alone.
+        sum_clause_counts = 0
+        for rule in rules_columns:
+            # quick feasibility check (group constraints)
+            if not rule_is_feasible(rule, self.__categorical_columns_index, pos2feat):
+                continue
+            # if rule requires a position not in vars -> cannot be satisfied
+            if any(abs(col) not in vars_set for col in rule):
+                continue
+
+            clause_count = 1
+            # for every feature that contributes to vars, compute number of
+            # projections that satisfy this rule's requirements on that feature
+            for inter, projections in feat_projections:
+                # build index mapping for this inter list
+                inter_idx = {p: idx for idx, p in enumerate(inter)}
+                # collect requirements on positions of this feature
+                reqs = {}
+                for col in rule:
+                    p = abs(col)
+                    if p in inter_idx:
+                        reqs[p] = 1 if col > 0 else 0
+                if not reqs:
+                    # no restriction from this rule on these vars
+                    count_feat = len(projections)
+                else:
+                    # count projections satisfying all requirements
+                    count_feat = 0
+                    for proj in projections:
+                        ok = True
+                        for p, val in reqs.items():
+                            if proj[inter_idx[p]] != val:
+                                ok = False
+                                break
+                        if ok:
+                            count_feat += 1
+                clause_count *= count_feat
+                if clause_count == 0:
+                    break
+
+            sum_clause_counts += clause_count
+            # early exit
+            if sum_clause_counts >= total_assignments:
+                return True
+
+        return sum_clause_counts == total_assignments
+
     def __create_sufficient_reasons_feature_string(self, normal_instance, opposite_instance, cols, clss):
         sufficient_reasons_features = set()
         normal_labels = self.__dataset_binarized.get_normal_features_label()
@@ -731,42 +865,42 @@ class DI_IMLIB:
         return sufficient_reasons_string
 
     def __remove_reasons_redundances(self, reasons):
+        # Parse comparisons like 'petal-length <= 4.63' including hyphens and floats
         parsed = []
+        other_literals = []
+        comp_re = re.compile(r"([\w\-]+)\s*([<>]=?)\s*(-?\d+(?:\.\d+)?)")
         for literal in reasons:
-            match = re.match(r"(\w+)\s*([<>]=?)\s*(-?\d+)", literal)
+            match = comp_re.match(literal)
             if match:
                 var, op, value = match.groups()
-                value = int(value)
+                value = float(value)
                 parsed.append((var, op, value, literal))
+            else:
+                other_literals.append(literal)
 
-        reduced = {}
-        
+        # Group by variable
+        grouped = {}
         for var, op, value, literal in parsed:
-            if var not in reduced:
-                reduced[var] = []
-            reduced[var].append((op, value, literal))
+            grouped.setdefault(var, []).append((op, value, literal))
 
-        final_literals = set(reasons)
-        
-        for var, conditions in reduced.items():
-            conditions.sort(key=lambda x: x[1])
-            
-            to_remove = set()
-            for i in range(len(conditions) - 1):
-                op1, val1, lit1 = conditions[i]
-                op2, val2, lit2 = conditions[i + 1]
+        final_literals = set(other_literals)
 
-                if op1 == "<=" and op2 == "<=":
-                    to_remove.add(lit2)
-                elif op1 == ">=" and op2 == ">=":
-                    to_remove.add(lit1)
-                elif op1 == ">" and op2 == ">":
-                    to_remove.add(lit1)
-                elif op1 == "<" and op2 == "<":
-                    to_remove.add(lit2)
+        for var, conditions in grouped.items():
+            lowers = [(op, val, lit) for (op, val, lit) in conditions if op in (">", ">=")]
+            uppers = [(op, val, lit) for (op, val, lit) in conditions if op in ("<", "<=")]
 
-            final_literals -= to_remove
-        
+            # Select the strongest lower bound (largest numeric value). If tie,
+            # prefer strict '>' over '>='
+            if lowers:
+                lowers.sort(key=lambda x: (-x[1], 0 if x[0] == ">" else 1))
+                final_literals.add(lowers[0][2])
+
+            # Select the strongest upper bound (smallest numeric value). If tie,
+            # prefer strict '<' over '<='
+            if uppers:
+                uppers.sort(key=lambda x: (x[1], 0 if x[0] == "<" else 1))
+                final_literals.add(uppers[0][2])
+
         return list(final_literals)
 
     # Utility functions -------------------------------------------------------------------
