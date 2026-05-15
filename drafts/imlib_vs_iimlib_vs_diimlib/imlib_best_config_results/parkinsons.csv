@@ -1,0 +1,4 @@
+model,max_rule_set_size,max_size_each_rule,rules_size_weight,rules_accuracy_weight,number_lines_per_partition,number_quantiles_ordinal_columns,balance_instances,balance_instances_seed,cv_mean_accuracy,cv_std_accuracy,cv_mean_time,cv_mean_num_rules,cv_std_num_rules,cv_mean_larger_rule,cv_std_larger_rule,cv_mean_sum_literals,cv_std_sum_literals,holdout_accuracy,holdout_num_rules,holdout_larger_rule,holdout_sum_literals,holdout_train_time,holdout_pred_time
+IMLIB,1.0,2.0,5.0,5.0,32.0,15.0,True,21.0,0.8087301587301587,0.07582307802930169,0.06348705291748047,1.0,0.0,1.2666666666666666,0.4422166387140533,1.2666666666666666,0.4422166387140533,0.847457627118644,1,1,1,0.026695966720581055,0.002006053924560547
+I-IMLIB,,,,,,,,,,,,,,,,,,0.847457627118644,1,1,1,0.023177385330200195,0.0019931793212890625
+DI-IMLIB,,,,,,,,,,,,,,,,,,0.847457627118644,1,1,1,0.025616168975830078,0.003032207489013672

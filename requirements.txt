@@ -2,3 +2,4 @@ pandas >= 1.4.3
 scikit-learn >= 1.2.1
 python-sat >= 0.1.7.dev26
 tqdm >= 4.65.0
+matplotlib==3.10.8

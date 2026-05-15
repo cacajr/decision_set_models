@@ -152,4 +152,49 @@ def rule_is_feasible(rule, categorical_columns_index, pos2feat):
             return False
         # otherwise feasible
     return True
-    
+
+def tree_to_dnf(clf, feature_names, target_names=None, class_label=None):
+    """
+    Convert a sklearn DecisionTreeClassifier to DNF (list of lists).
+    - clf: DecisionTreeClassifier already trained
+    - feature_names: list/iterable with feature names
+    - target_names: list (optional) with class names
+    - class_label: if provided, returns only clauses leading to this class (class name)
+    Returns: list of lists, for example:
+      [['petal width <= 0.8000'],
+       ['petal width > 0.8000', 'petal width <= 1.6500']]
+    """
+    tree = clf.tree_
+    feature_names = list(feature_names)
+    class_index = None
+
+    if class_label is not None:
+        if target_names is None:
+            raise ValueError("For filtering by class, pass 'target_names'.")
+        try:
+            class_index = list(target_names).index(class_label)
+        except ValueError:
+            raise ValueError(f"Class '{class_label}' not found in target_names.")
+    clauses = []
+
+    def recurse(node, path):
+        # Leaf check
+        if tree.children_left[node] == -1 and tree.children_right[node] == -1:
+            # If there is a class filter, check
+            if class_index is not None:
+                pred = tree.value[node][0].argmax()
+                if pred != class_index:
+                    return
+            clauses.append(path.copy())
+            return
+
+        feat = tree.feature[node]
+        thr = tree.threshold[node]
+        name = feature_names[feat]
+        # left: <= threshold
+        recurse(tree.children_left[node], path + [f"{name} <= {thr:.4f}"])
+        # right: > threshold
+        recurse(tree.children_right[node], path + [f"{name} > {thr:.4f}"])
+
+    recurse(0, [])
+    return clauses    
